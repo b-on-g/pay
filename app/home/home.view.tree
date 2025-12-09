@@ -1,5 +1,2 @@
 $bog_pay_app_home $mol_page
 	title @ \BOG Pay - Payment System
-	body /
-		<= Content $mol_text
-			text @ \ГЛАВНАЯ - в разработке
