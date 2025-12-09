@@ -4,3 +4,11 @@ $bog_pay_app_account $bog_lk
 	plugins /
 	Profile_form null
 	Form_title null
+	body /
+		<= Payment_section $mol_view
+			sub /
+				<= Payment_title $mol_text
+					text @ \Пополнение баланса
+				<= Payment_button $bog_pay_app_account_button
+					amount <= payment_amount 100
+					description <= payment_description \Пополнение баланса BOG Pay

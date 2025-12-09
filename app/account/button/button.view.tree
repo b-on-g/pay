@@ -1,0 +1,5 @@
+$bog_pay_app_account_button $mol_button_major
+	title @ \Оплатить
+	amount 100
+	description \Payment
+	click? <=> pay_click? null
