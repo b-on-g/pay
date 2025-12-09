@@ -242,12 +242,27 @@ $bog_theme_toggle $mol_pop
 			theme_auto <= theme_auto
 			close? <=> picker_close? null
 
+$bog_pay_app_home $mol_page
+	title @ \BOG Pay - Payment System
+
 $mol_paragraph $mol_view
 	line_height 24
 	letter_width 7
 	width_limit +Infinity
 	row_width 0
 	sub / <= title
+
+$mol_section $mol_list
+	level 1
+	rows /
+		<= Head $mol_view
+			sub <= head /
+				<= Title $mol_paragraph
+					dom_name <= title_dom_name \h1
+					title <= title
+				<= Tools $mol_view sub <= tools /
+		<= Content $mol_list
+			rows <= content /
 
 $mol_stack $mol_view
 
@@ -650,6 +665,19 @@ $mol_text_span $mol_paragraph
 		^
 		mol_text_type <= type \
 
+$mol_card $mol_list
+	attr *
+		^
+		mol_card_status_type <= status \
+	rows /$mol_view
+		<= Content $mol_view
+			sub <= content /$mol_view_content
+				<= title
+		<= Status $mol_view
+			minimal_height 30
+			sub /
+				<= status_text <= status \
+
 $mol_text_list $mol_text
 	auto_scroll null
 	attr *
@@ -663,38 +691,6 @@ $mol_text_list_item $mol_paragraph
 	attr *
 		^
 		mol_text_list_item_index <= index 0
-
-$bog_pay_app_home $mol_page
-	title @ \Bog Ping
-	Head null
-	body /
-		<= Content $mol_text
-			text @ \ГЛАВНАЯ - в разработке
-
-$mol_section $mol_list
-	level 1
-	rows /
-		<= Head $mol_view
-			sub <= head /
-				<= Title $mol_paragraph
-					dom_name <= title_dom_name \h1
-					title <= title
-				<= Tools $mol_view sub <= tools /
-		<= Content $mol_list
-			rows <= content /
-
-$mol_card $mol_list
-	attr *
-		^
-		mol_card_status_type <= status \
-	rows /$mol_view
-		<= Content $mol_view
-			sub <= content /$mol_view_content
-				<= title
-		<= Status $mol_view
-			minimal_height 30
-			sub /
-				<= status_text <= status \
 
 $bog_pay_app_games $mol_page
 	title @ \Games
