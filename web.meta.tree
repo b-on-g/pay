@@ -102,6 +102,8 @@
 	pack intern git \https://github.com/hyoo-ru/intern.hyoo.ru.git
 \/bog/lk
 	include \/mol/offline/install
+\/mol/notify
+	include \/mol/offline/install
 \/bog/pay/app
 	include \/mol/offline/install
 	deploy \/bog/pay/assets

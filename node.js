@@ -19141,7 +19141,224 @@ var $;
 })($ || ($ = {}));
 
 ;
+	($.$bog_pay_app_account_button) = class $bog_pay_app_account_button extends ($.$mol_button_major) {
+		pay_click(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		title(){
+			return (this.$.$mol_locale.text("$bog_pay_app_account_button_title"));
+		}
+		amount(){
+			return 100;
+		}
+		description(){
+			return "Payment";
+		}
+		click(next){
+			return (this.pay_click(next));
+		}
+	};
+	($mol_mem(($.$bog_pay_app_account_button.prototype), "pay_click"));
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    class $mol_import extends $mol_object2 {
+        static module(uri) {
+            $mol_wire_solid();
+            return $mol_wire_sync(this).module_async(uri);
+        }
+        static module_async(uri) {
+            return import(uri);
+        }
+        static script(uri) {
+            $mol_wire_solid();
+            return $mol_wire_sync(this).script_async(uri);
+        }
+        static script_async(uri) {
+            const doc = $mol_dom_context.document;
+            const script = doc.createElement('script');
+            script.src = uri;
+            doc.head.appendChild(script);
+            return new Promise((done, fail) => {
+                script.onload = () => done($mol_dom_context);
+                script.onerror = () => fail(new Error(`Can not import ${uri}`));
+            });
+        }
+        static style(uri) {
+            return $mol_wire_sync(this).style_async(uri);
+        }
+        static style_async(uri) {
+            const doc = $mol_dom_context.document;
+            const style = doc.createElement('link');
+            style.rel = 'stylesheet';
+            style.href = uri;
+            doc.head.appendChild(style);
+            return new Promise((done, fail) => {
+                style.onload = () => done(style.sheet);
+                style.onerror = () => fail(new Error(`Can not import ${uri}`));
+            });
+        }
+    }
+    __decorate([
+        $mol_mem_key
+    ], $mol_import, "module", null);
+    __decorate([
+        $mol_mem_key
+    ], $mol_import, "script", null);
+    __decorate([
+        $mol_mem_key
+    ], $mol_import, "style", null);
+    $.$mol_import = $mol_import;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    class $mol_notify {
+        static allowed(next) {
+            return false;
+        }
+        static show(info) {
+        }
+    }
+    __decorate([
+        $mol_mem
+    ], $mol_notify, "allowed", null);
+    __decorate([
+        $mol_action
+    ], $mol_notify, "show", null);
+    $.$mol_notify = $mol_notify;
+})($ || ($ = {}));
+
+;
+"use strict";
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        class $bog_pay_app_account_button extends $.$bog_pay_app_account_button {
+            tbank_sdk() {
+                return $mol_import.script('https://integrationjs.tbank.ru/integration.js').TinkoffPayments;
+            }
+            payment() {
+                const TinkoffPayments = this.tbank_sdk();
+                return new TinkoffPayments({
+                    terminalKey: '1765295464453DEMO',
+                    product: 'eacq',
+                });
+            }
+            pay_click() {
+                const payment = this.payment();
+                $mol_wire_async(this)
+                    .pay_process()
+                    .then(result => {
+                    if (result?.success) {
+                        this.$.$mol_notify.show({
+                            context: 'payment',
+                            message: 'Оплата прошла успешно!',
+                            uri: '',
+                        });
+                    }
+                }, error => {
+                    $mol_wire_async(this)
+                        .pay_process()
+                        .then(result => {
+                        if (result?.success) {
+                            this.$.$mol_notify.show({
+                                context: 'payment',
+                                message: 'Оплата прошла успешно!',
+                                uri: '',
+                            });
+                        }
+                    }, error => {
+                        this.$.$mol_notify.show({
+                            context: 'payment',
+                            message: 'ОшибкаОшибка оплаты:оплаты: ' +
+                                (error?.message || String(error)) +
+                                (error?.message || String(error)),
+                            uri: '',
+                        });
+                    });
+                });
+            }
+            async pay_process() {
+                const payment = this.payment();
+                return await payment.pay({
+                    amount: this.amount(),
+                    description: this.description(),
+                    receiptData: {
+                        email: 'customer@example.com',
+                        items: [
+                            {
+                                name: this.description(),
+                                price: this.amount(),
+                                quantity: 1,
+                                amount: this.amount(),
+                                tax: 'none',
+                            },
+                        ],
+                    },
+                });
+            }
+        }
+        __decorate([
+            $mol_mem
+        ], $bog_pay_app_account_button.prototype, "tbank_sdk", null);
+        __decorate([
+            $mol_mem
+        ], $bog_pay_app_account_button.prototype, "payment", null);
+        __decorate([
+            $mol_action
+        ], $bog_pay_app_account_button.prototype, "pay_click", null);
+        $$.$bog_pay_app_account_button = $bog_pay_app_account_button;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        $mol_style_define($bog_pay_app_account_button, {
+            padding: $mol_gap.text,
+            minWidth: '200px',
+        });
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
 	($.$bog_pay_app_account) = class $bog_pay_app_account extends ($.$bog_lk) {
+		Payment_title(){
+			const obj = new this.$.$mol_text();
+			(obj.text) = () => ((this.$.$mol_locale.text("$bog_pay_app_account_Payment_title_text")));
+			return obj;
+		}
+		payment_amount(){
+			return 100;
+		}
+		payment_description(){
+			return "Пополнение баланса BOG Pay";
+		}
+		Payment_button(){
+			const obj = new this.$.$bog_pay_app_account_button();
+			(obj.amount) = () => ((this.payment_amount()));
+			(obj.description) = () => ((this.payment_description()));
+			return obj;
+		}
+		Payment_section(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.Payment_title()), (this.Payment_button())]);
+			return obj;
+		}
 		title(){
 			return (this.$.$mol_locale.text("$bog_pay_app_account_title"));
 		}
@@ -19157,7 +19374,13 @@ var $;
 		Form_title(){
 			return null;
 		}
+		body(){
+			return [(this.Payment_section())];
+		}
 	};
+	($mol_mem(($.$bog_pay_app_account.prototype), "Payment_title"));
+	($mol_mem(($.$bog_pay_app_account.prototype), "Payment_button"));
+	($mol_mem(($.$bog_pay_app_account.prototype), "Payment_section"));
 
 
 ;
@@ -19362,7 +19585,19 @@ var $;
 (function ($) {
     var $$;
     (function ($$) {
-        $mol_style_define($bog_pay_app_account, {});
+        $mol_style_define($bog_pay_app_account, {
+            Payment_section: {
+                padding: $mol_gap.block,
+                maxWidth: '600px',
+                margin: [0, 'auto'],
+            },
+            Payment_title: {
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                margin: [$mol_gap.block, 0],
+                textAlign: 'center',
+            },
+        });
     })($$ = $.$$ || ($.$$ = {}));
 })($ || ($ = {}));
 

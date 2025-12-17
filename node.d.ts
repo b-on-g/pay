@@ -8827,6 +8827,53 @@ declare namespace $.$$ {
 }
 
 declare namespace $ {
+    class $mol_import extends $mol_object2 {
+        static module(uri: string): any;
+        static module_async(uri: string): Promise<any>;
+        static script(uri: string): any;
+        static script_async(uri: string): Promise<any>;
+        static style(uri: string): any;
+        static style_async(uri: string): any;
+    }
+}
+
+declare namespace $ {
+    class $mol_notify {
+        static allowed(next?: boolean): boolean;
+        static show(info: {
+            context: string;
+            message: string;
+            uri: string;
+        }): void;
+    }
+}
+
+declare namespace $ {
+
+	export class $bog_pay_app_account_button extends $mol_button_major {
+		pay_click( next?: any ): any
+		title( ): string
+		amount( ): number
+		description( ): string
+		click( next?: ReturnType< $bog_pay_app_account_button['pay_click'] > ): ReturnType< $bog_pay_app_account_button['pay_click'] >
+	}
+	
+}
+
+//# sourceMappingURL=button.view.tree.d.ts.map
+declare namespace $.$$ {
+    class $bog_pay_app_account_button extends $.$bog_pay_app_account_button {
+        tbank_sdk(): any;
+        payment(): any;
+        pay_click(): void;
+        pay_process(): Promise<any>;
+    }
+}
+
+declare namespace $.$$ {
+}
+
+declare namespace $ {
     class $mol_fetch_response extends $mol_object {
         readonly native: Response;
         readonly request: $mol_fetch_request;
@@ -8870,12 +8917,38 @@ declare namespace $ {
 
 declare namespace $ {
 
+	type $mol_text__text_bog_pay_app_account_1 = $mol_type_enforce<
+		string
+		,
+		ReturnType< $mol_text['text'] >
+	>
+	type $bog_pay_app_account_button__amount_bog_pay_app_account_2 = $mol_type_enforce<
+		ReturnType< $bog_pay_app_account['payment_amount'] >
+		,
+		ReturnType< $bog_pay_app_account_button['amount'] >
+	>
+	type $bog_pay_app_account_button__description_bog_pay_app_account_3 = $mol_type_enforce<
+		ReturnType< $bog_pay_app_account['payment_description'] >
+		,
+		ReturnType< $bog_pay_app_account_button['description'] >
+	>
+	type $mol_view__sub_bog_pay_app_account_4 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
 	export class $bog_pay_app_account extends $bog_lk {
+		Payment_title( ): $mol_text
+		payment_amount( ): number
+		payment_description( ): string
+		Payment_button( ): $bog_pay_app_account_button
+		Payment_section( ): $mol_view
 		title( ): string
 		Head( ): any
 		plugins( ): readonly(any)[]
 		Profile_form( ): any
 		Form_title( ): any
+		body( ): readonly(any)[]
 	}
 	
 }

@@ -998,12 +998,26 @@ $bog_lk $mol_page
 							value? <=> twitter? \
 							hint @ \Twitter placeholder
 
+$bog_pay_app_account_button $mol_button_major
+	title @ \Оплатить
+	amount 100
+	description \Payment
+	click? <=> pay_click? null
+
 $bog_pay_app_account $bog_lk
 	title @ \Personal Cabinet
 	Head null
 	plugins /
 	Profile_form null
 	Form_title null
+	body /
+		<= Payment_section $mol_view
+			sub /
+				<= Payment_title $mol_text
+					text @ \Пополнение баланса
+				<= Payment_button $bog_pay_app_account_button
+					amount <= payment_amount 100
+					description <= payment_description \Пополнение баланса BOG Pay
 
 $bog_pay_app_admin $mol_page
 	title @ \Admin
