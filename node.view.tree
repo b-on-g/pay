@@ -270,24 +270,24 @@ $bog_theme_toggle $mol_pop
 $bog_pay_app_home $mol_page
 	title @ \BOG Pay - Payment System
 
+$mol_section $mol_list
+	level 1
+	rows /
+		<= Head $mol_view
+			sub <= head /
+				<= Title $mol_view
+					dom_name <= title_dom_name \h1
+					sub / <= title
+				<= Tools $mol_view sub <= tools /
+		<= Content $mol_list
+			rows <= content /
+
 $mol_paragraph $mol_view
 	line_height 24
 	letter_width 7
 	width_limit +Infinity
 	row_width 0
 	sub / <= title
-
-$mol_section $mol_list
-	level 1
-	rows /
-		<= Head $mol_view
-			sub <= head /
-				<= Title $mol_paragraph
-					dom_name <= title_dom_name \h1
-					title <= title
-				<= Tools $mol_view sub <= tools /
-		<= Content $mol_list
-			rows <= content /
 
 $mol_stack $mol_view
 
@@ -350,7 +350,6 @@ $mol_button_copy $mol_button_minor
 	sub /
 		<= Icon $mol_icon_clipboard_outline
 		<= title \
-
 
 $mol_text_code $mol_stack
 	attr *
