@@ -2332,7 +2332,7 @@ declare namespace $ {
 			pointerup( next?: ReturnType< $bog_theme_toggle['press_end'] > ): ReturnType< $bog_theme_toggle['press_end'] >,
 			pointercancel( next?: ReturnType< $bog_theme_toggle['press_cancel'] > ): ReturnType< $bog_theme_toggle['press_cancel'] >,
 			lostpointercapture( next?: ReturnType< $bog_theme_toggle['press_lost'] > ): ReturnType< $bog_theme_toggle['press_lost'] >,
-		})  & ReturnType< $mol_pop['Anchor'] >
+		})  & ReturnType< $mol_button_minor['event'] >
 		,
 		ReturnType< $mol_button_minor['event'] >
 	>
