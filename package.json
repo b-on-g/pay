@@ -334,6 +334,8 @@
     "$mol_import",
     "$mol_notify",
     "$mol_fetch",
+    "$mol_error_enriched",
+    "$mol_error_fence",
     "$bog_pay_app_admin",
     "$mol_deck",
     "$mol_switch",
