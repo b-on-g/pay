@@ -41,7 +41,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    const mod = require('module');
+    const mod = require /****/('module');
     const internals = mod.builtinModules;
     function $node_internal_check(name) {
         if (name.startsWith('node:'))
@@ -81,7 +81,7 @@ var $;
 var $;
 (function ($) {
     function $mol_fail_hidden(error) {
-        throw error;
+        throw error; /// Use 'Never Pause Here' breakpoint in DevTools or simply blackbox this script
     }
     $.$mol_fail_hidden = $mol_fail_hidden;
 })($ || ($ = {}));
@@ -139,8 +139,8 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    const path = require('path');
-    const mod = require('module');
+    const path = require /****/('path');
+    const mod = require /****/('module');
     const localRequire = mod.createRequire(path.join(process.cwd(), 'package.json'));
     function $node_autoinstall(name) {
         try {
@@ -247,6 +247,7 @@ var $;
                     ])
                 ].map(frame_normalize).join('\n')
             });
+            // в nodejs, что б не дублировалось cause в консоли
             Object.defineProperty(this, 'cause', {
                 get: () => cause
             });
@@ -280,6 +281,11 @@ var $;
 var $;
 (function ($) {
     const instances = new WeakSet();
+    /**
+     * Proxy that delegates all to lazy returned target.
+     *
+     * 	$mol_delegate( Array.prototype , ()=> fetch_array() )
+     */
     function $mol_delegate(proto, target) {
         const proxy = new Proxy(proto, {
             get: (_, field) => {
@@ -423,6 +429,9 @@ var $;
         [Symbol.dispose]() {
             this.destructor();
         }
+        //[ Symbol.toPrimitive ]( hint: string ) {
+        //	return hint === 'number' ? this.valueOf() : this.toString()
+        //}
         toString() {
             return this[Symbol.toStringTag] || this.constructor.name + '<>';
         }
@@ -473,6 +482,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Generates unique identifier. */
     function $mol_guid(length = 8, exists = () => false) {
         for (;;) {
             let id = Math.random().toString(36).substring(2, length + 2).toUpperCase();
@@ -488,11 +498,16 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Special status statuses. */
     let $mol_wire_cursor;
     (function ($mol_wire_cursor) {
+        /** Update required. */
         $mol_wire_cursor[$mol_wire_cursor["stale"] = -1] = "stale";
+        /** Some of (transitive) pub update required. */
         $mol_wire_cursor[$mol_wire_cursor["doubt"] = -2] = "doubt";
+        /** Actual state but may be dropped. */
         $mol_wire_cursor[$mol_wire_cursor["fresh"] = -3] = "fresh";
+        /** State will never be changed. */
         $mol_wire_cursor[$mol_wire_cursor["final"] = -4] = "final";
     })($mol_wire_cursor = $.$mol_wire_cursor || ($.$mol_wire_cursor = {}));
 })($ || ($ = {}));
@@ -501,6 +516,9 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Collects subscribers in compact array. 28B
+     */
     class $mol_wire_pub extends Object {
         constructor(id = `$mol_wire_pub:${$mol_guid()}`) {
             super();
@@ -508,10 +526,17 @@ var $;
         }
         [Symbol.toStringTag];
         data = [];
+        // Derived objects should be Arrays.
         static get [Symbol.species]() {
             return Array;
         }
-        sub_from = 0;
+        /**
+         * Index of first subscriber.
+         */
+        sub_from = 0; // 4B
+        /**
+         * All current subscribers.
+         */
         get sub_list() {
             const res = [];
             for (let i = this.sub_from; i < this.data.length; i += 2) {
@@ -519,14 +544,23 @@ var $;
             }
             return res;
         }
+        /**
+         * Has any subscribers or not.
+         */
         get sub_empty() {
             return this.sub_from === this.data.length;
         }
+        /**
+         * Subscribe subscriber to this publisher events and return position of subscriber that required to unsubscribe.
+         */
         sub_on(sub, pub_pos) {
             const pos = this.data.length;
             this.data.push(sub, pub_pos);
             return pos;
         }
+        /**
+         * Unsubscribe subscriber from this publisher events by subscriber position provided by `on(pub)`.
+         */
         sub_off(sub_pos) {
             if (!(sub_pos < this.data.length)) {
                 $mol_fail(new Error(`Wrong pos ${sub_pos}`));
@@ -539,21 +573,39 @@ var $;
             if (end === this.sub_from)
                 this.reap();
         }
+        /**
+         * Called when last sub was unsubscribed.
+         **/
         reap() { }
+        /**
+         * Autowire this publisher with current subscriber.
+         **/
         promote() {
             $mol_wire_auto()?.track_next(this);
         }
+        /**
+         * Enforce actualization. Should not throw errors.
+         */
         fresh() { }
+        /**
+         * Allow to put data to caches in the subtree.
+         */
         complete() { }
         get incompleted() {
             return false;
         }
+        /**
+         * Notify subscribers about self changes.
+         */
         emit(quant = $mol_wire_cursor.stale) {
             for (let i = this.sub_from; i < this.data.length; i += 2) {
                 ;
                 this.data[i].absorb(quant, this.data[i + 1]);
             }
         }
+        /**
+         * Moves peer from one position to another. Doesn't clear data at old position!
+         */
         peer_move(from_pos, to_pos) {
             const peer = this.data[from_pos];
             const self_pos = this.data[from_pos + 1];
@@ -561,6 +613,9 @@ var $;
             this.data[to_pos + 1] = self_pos;
             peer.peer_repos(self_pos, to_pos);
         }
+        /**
+         * Updates self position in the peer.
+         */
         peer_repos(peer_pos, self_pos) {
             this.data[peer_pos + 1] = self_pos;
         }
@@ -576,10 +631,16 @@ var $;
 var $;
 (function ($) {
     $.$mol_wire_auto_sub = null;
+    /**
+     * When fulfilled, all publishers are promoted to this subscriber on access to its.
+     */
     function $mol_wire_auto(next = $.$mol_wire_auto_sub) {
         return $.$mol_wire_auto_sub = next;
     }
     $.$mol_wire_auto = $mol_wire_auto;
+    /**
+     * Affection queue. Used to prevent accidental stack overflow on emit.
+     */
     $.$mol_wire_affected = [];
 })($ || ($ = {}));
 
@@ -587,6 +648,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    // https://docs.google.com/document/d/1FTascZXT9cxfetuPRT2eXPQKXui4nWFivUnS_335T3U/preview#
     $['devtoolsFormatters'] ||= [];
     function $mol_dev_format_register(config) {
         $['devtoolsFormatters'].push(config);
@@ -638,6 +700,7 @@ var $;
                 return false;
             if (!val)
                 return false;
+            // if( Error.isError( val ) ) true
             if (val[$.$mol_dev_format_body])
                 return true;
             return false;
@@ -655,12 +718,16 @@ var $;
                     return $.$mol_dev_format_accent($mol_dev_format_native(val), '💨', $mol_dev_format_native(error), '');
                 }
             }
+            // if( Error.isError( val ) ) {
+            // 	return $mol_dev_format_native( val )
+            // }
             return null;
         },
     });
     function $mol_dev_format_native(obj) {
         if (typeof obj === 'undefined')
             return $.$mol_dev_format_shade('undefined');
+        // if( ![ 'object', 'function', 'symbol' ].includes( typeof obj )  ) return obj
         return [
             'object',
             {
@@ -718,6 +785,9 @@ var $;
         'margin-left': '13px'
     });
     class Stack extends Array {
+        // [ Symbol.toPrimitive ]() {
+        // 	return this.toString()
+        // }
         toString() {
             return this.join('\n');
         }
@@ -740,6 +810,7 @@ var $;
             this.method = call.getMethodName() ?? '';
             if (this.method === this.function)
                 this.method = '';
+            // const func = c.getFunction()
             this.pos = [call.getEnclosingLineNumber() ?? 0, call.getEnclosingColumnNumber() ?? 0];
             this.eval = call.getEvalOrigin() ?? '';
             this.source = call.getScriptNameOrSourceURL() ?? '';
@@ -786,9 +857,16 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Publisher that can auto collect other publishers. 32B
+     *
+     * 	P1 P2 P3 P4 S1 S2 S3
+     * 	^           ^
+     * 	pubs_from   subs_from
+     */
     class $mol_wire_pub_sub extends $mol_wire_pub {
-        pub_from = 0;
-        cursor = $mol_wire_cursor.stale;
+        pub_from = 0; // 4B
+        cursor = $mol_wire_cursor.stale; // 4B
         get temp() {
             return false;
         }
@@ -906,10 +984,27 @@ var $;
                 return;
             this.cursor = quant;
             this.emit($mol_wire_cursor.doubt);
+            // if( pos >= 0 && pos < this.sub_from - 2 ) {
+            // 	const pub = this.data[ pos ] as $mol_wire_pub
+            // 	if( pub instanceof $mol_wire_task ) return
+            // 	for(
+            // 		let cursor = this.pub_from;
+            // 		cursor < this.sub_from;
+            // 		cursor += 2
+            // 	) {
+            // 		const pub = this.data[ cursor ] as $mol_wire_pub
+            // 		if( pub instanceof $mol_wire_task ) {
+            // 			pub.destructor()
+            // 		}
+            // 	}
+            // }
         }
         [$mol_dev_format_head]() {
             return $mol_dev_format_native(this);
         }
+        /**
+         * Is subscribed to any publisher or not.
+         */
         get pub_empty() {
             return this.sub_from === this.pub_from;
         }
@@ -950,6 +1045,13 @@ var $;
 var $;
 (function ($) {
     const wrappers = new WeakMap();
+    /**
+     * Suspendable task with support both sync/async api.
+     *
+     * 	A1 A2 A3 A4 P1 P2 P3 P4 S1 S2 S3
+     * 	^           ^           ^
+     * 	args_from   pubs_from   subs_from
+     **/
     class $mol_wire_fiber extends $mol_wire_pub_sub {
         task;
         host;
@@ -970,6 +1072,7 @@ var $;
             });
         }
         static sync() {
+            // Sync whole fiber graph
             while (this.planning.size) {
                 for (const fiber of this.planning) {
                     this.planning.delete(fiber);
@@ -980,6 +1083,7 @@ var $;
                     fiber.fresh();
                 }
             }
+            // Collect garbage
             while (this.reaping.size) {
                 const fibers = this.reaping;
                 this.reaping = new Set;
@@ -1131,6 +1235,10 @@ var $;
             this.cursor = $mol_wire_cursor.stale;
             this.fresh();
         }
+        /**
+         * Synchronous execution. Throws Promise when waits async task (SuspenseAPI provider).
+         * Should be called inside SuspenseAPI consumer (ie fiber).
+         */
         sync() {
             if (!$mol_wire_fiber.warm) {
                 return this.result();
@@ -1145,6 +1253,10 @@ var $;
             }
             return this.cache;
         }
+        /**
+         * Asynchronous execution.
+         * It's SuspenseAPI consumer. So SuspenseAPI providers can be called inside.
+         */
         async async_raw() {
             while (true) {
                 this.fresh();
@@ -1157,6 +1269,7 @@ var $;
                 if (!$mol_promise_like(this.cache))
                     return this.cache;
                 if (this.cursor === $mol_wire_cursor.final) {
+                    // never ends on destructed fiber
                     await new Promise(() => { });
                 }
             }
@@ -1204,6 +1317,10 @@ var $;
 var $;
 (function ($) {
     $.$mol_compare_deep_cache = new WeakMap();
+    /**
+     * Deeply compares two values. Returns true if equal.
+     * Define `Symbol.toPrimitive` to customize.
+     */
     function $mol_compare_deep(left, right) {
         if (Object.is(left, right))
             return true;
@@ -1343,6 +1460,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Log begin of collapsed group only when some logged inside, returns func to close group */
     function $mol_log3_area_lazy(event) {
         const self = this.$;
         const stack = self.$mol_log3_stack;
@@ -1367,6 +1485,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Position in any resource. */
     class $mol_span extends $mol_object2 {
         uri;
         source;
@@ -1382,13 +1501,17 @@ var $;
             this.length = length;
             this[Symbol.toStringTag] = this.uri + ('#' + this.row + ':' + this.col + '/' + this.length);
         }
+        /** Span for begin of unknown resource */
         static unknown = $mol_span.begin('?');
+        /** Makes new span for begin of resource. */
         static begin(uri, source = '') {
             return new $mol_span(uri, source, 1, 1, 0);
         }
+        /** Makes new span for end of resource. */
         static end(uri, source) {
             return new $mol_span(uri, source, 1, source.length + 1, 0);
         }
+        /** Makes new span for entire resource. */
         static entire(uri, source) {
             return new $mol_span(uri, source, 1, 1, source.length);
         }
@@ -1403,15 +1526,19 @@ var $;
                 length: this.length
             };
         }
+        /** Makes new error for this span. */
         error(message, Class = Error) {
             return new Class(`${message} (${this})`);
         }
+        /** Makes new span for same uri. */
         span(row, col, length) {
             return new $mol_span(this.uri, this.source, row, col, length);
         }
+        /** Makes new span after end of this. */
         after(length = 0) {
             return new $mol_span(this.uri, this.source, this.row, this.col + this.length, length);
         }
+        /** Makes new span between begin and end. */
         slice(begin, end = -1) {
             let len = this.length;
             if (begin < 0)
@@ -1434,6 +1561,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Serializes tree to string in tree format. */
     function $mol_tree2_to_string(tree) {
         let output = [];
         function dump(tree, prefix = '') {
@@ -1477,12 +1605,25 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Abstract Syntax Tree with human readable serialization.
+     * Avoid direct instantiation. Use static factories instead.
+     * @see https://github.com/nin-jin/tree.d
+     */
     class $mol_tree2 extends Object {
         type;
         value;
         kids;
         span;
-        constructor(type, value, kids, span) {
+        constructor(
+        /** Type of structural node, `value` should be empty */
+        type, 
+        /** Content of data node, `type` should be empty */
+        value, 
+        /** Child nodes */
+        kids, 
+        /** Position in most far source resource */
+        span) {
             super();
             this.type = type;
             this.value = value;
@@ -1490,12 +1631,15 @@ var $;
             this.span = span;
             this[Symbol.toStringTag] = type || '\\' + value;
         }
+        /** Makes collection node. */
         static list(kids, span = $mol_span.unknown) {
             return new $mol_tree2('', '', kids, span);
         }
+        /** Makes new derived collection node. */
         list(kids) {
             return $mol_tree2.list(kids, this.span);
         }
+        /** Makes data node for any string. */
         static data(value, kids = [], span = $mol_span.unknown) {
             const chunks = value.split('\n');
             if (chunks.length > 1) {
@@ -1509,21 +1653,26 @@ var $;
             }
             return new $mol_tree2('', value, kids, span);
         }
+        /** Makes new derived data node. */
         data(value, kids = []) {
             return $mol_tree2.data(value, kids, this.span);
         }
+        /** Makes struct node. */
         static struct(type, kids = [], span = $mol_span.unknown) {
             if (/[ \n\t\\]/.test(type)) {
                 $$.$mol_fail(span.error(`Wrong type ${JSON.stringify(type)}`));
             }
             return new $mol_tree2(type, '', kids, span);
         }
+        /** Makes new derived structural node. */
         struct(type, kids = []) {
             return $mol_tree2.struct(type, kids, this.span);
         }
+        /** Makes new derived node with different kids id defined. */
         clone(kids, span = this.span) {
             return new $mol_tree2(this.type, this.value, kids, span);
         }
+        /** Returns multiline text content. */
         text() {
             var values = [];
             for (var kid of this.kids) {
@@ -1533,15 +1682,20 @@ var $;
             }
             return this.value + values.join('\n');
         }
+        /** Parses tree format. */
+        /** @deprecated Use $mol_tree2_from_string */
         static fromString(str, uri = 'unknown') {
             return $$.$mol_tree2_from_string(str, uri);
         }
+        /** Serializes to tree format. */
         toString() {
             return $$.$mol_tree2_to_string(this);
         }
+        /** Makes new tree with node overrided by path. */
         insert(value, ...path) {
             return this.update($mol_maybe(value), ...path)[0];
         }
+        /** Makes new tree with node overrided by path. */
         update(value, ...path) {
             if (path.length === 0)
                 return value;
@@ -1574,6 +1728,7 @@ var $;
                 return [this.clone(kids)];
             }
         }
+        /** Query nodes by path. */
         select(...path) {
             let next = [this];
             for (const type of path) {
@@ -1600,6 +1755,7 @@ var $;
             }
             return this.list(next);
         }
+        /** Filter kids by path or value. */
         filter(path, value) {
             const sub = this.kids.filter(item => {
                 var found = item.select(...path);
@@ -1627,9 +1783,11 @@ var $;
                 $mol_fail_hidden(error);
             }
         }
+        /** Transform tree through context with transformers */
         hack(belt, context = {}) {
             return [].concat(...this.kids.map(child => child.hack_self(belt, context)));
         }
+        /** Makes Error with node coordinates. */
         error(message, Class = Error) {
             return this.span.error(`${message}\n${this.clone([])}`, Class);
         }
@@ -1647,6 +1805,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Syntax error with cordinates and source line snippet. */
     class $mol_error_syntax extends SyntaxError {
         reason;
         line;
@@ -1665,6 +1824,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Parses tree format from string. */
     function $mol_tree2_from_string(str, uri = '?') {
         const span = $mol_span.entire(uri, str);
         var root = $mol_tree2.list([], span);
@@ -1674,6 +1834,7 @@ var $;
             var indent = 0;
             var line_start = pos;
             row++;
+            // read indent
             while (str.length > pos && str[pos] == '\t') {
                 indent++;
                 pos++;
@@ -1682,8 +1843,10 @@ var $;
                 min_indent = indent;
             }
             indent -= min_indent;
+            // invalid tab size
             if (indent < 0 || indent >= stack.length) {
                 const sp = span.span(row, 1, pos - line_start);
+                // skip error line
                 while (str.length > pos && str[pos] != '\n') {
                     pos++;
                 }
@@ -1698,7 +1861,9 @@ var $;
             }
             stack.length = indent + 1;
             var parent = stack[indent];
+            // parse types
             while (str.length > pos && str[pos] != '\\' && str[pos] != '\n') {
+                // type can not contain space and tab
                 var error_start = pos;
                 while (str.length > pos && (str[pos] == ' ' || str[pos] == '\t')) {
                     pos++;
@@ -1710,6 +1875,7 @@ var $;
                     const sp = span.span(row, error_start - line_start + 1, pos - error_start);
                     this.$mol_fail(new this.$mol_error_syntax(`Wrong nodes separator`, str.substring(line_start, line_end), sp));
                 }
+                // read type
                 var type_start = pos;
                 while (str.length > pos &&
                     str[pos] != '\\' &&
@@ -1724,10 +1890,12 @@ var $;
                     parent_kids.push(next);
                     parent = next;
                 }
+                // read one space if exists
                 if (str.length > pos && str[pos] == ' ') {
                     pos++;
                 }
             }
+            // read data
             if (str.length > pos && str[pos] == '\\') {
                 var data_start = pos;
                 while (str.length > pos && str[pos] != '\n') {
@@ -1738,6 +1906,7 @@ var $;
                 parent_kids.push(next);
                 parent = next;
             }
+            // now must be end of text
             if (str.length === pos && stack.length > 0) {
                 const sp = span.span(row, pos - line_start + 1, 1);
                 this.$mol_fail(new this.$mol_error_syntax(`Unexpected EOF, LF required`, str.substring(line_start, str.length), sp));
@@ -1830,6 +1999,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Module for working with terminal. Text coloring when output in terminal */
     class $mol_term_color {
         static reset = this.ansi(0, 0);
         static bold = this.ansi(1, 22);
@@ -1901,6 +2071,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** One-shot fiber */
     class $mol_wire_task extends $mol_wire_fiber {
         static getter(task) {
             return function $mol_wire_task_get(host, args) {
@@ -1926,6 +2097,7 @@ var $;
                 }
                 const key = (host?.[Symbol.toStringTag] ?? host) + ('.' + task.name + '<#>');
                 const next = new $mol_wire_task(key, task, host, args);
+                // Disabled because non-idempotency is required for try-catch
                 if (existen?.temp) {
                     $$.$mol_log3_warn({
                         place: '$mol_wire_task',
@@ -1958,7 +2130,7 @@ var $;
                     try {
                         next[Symbol.toStringTag] = this[Symbol.toStringTag];
                     }
-                    catch {
+                    catch { // Promises throw in strict mode
                         Object.defineProperty(next, Symbol.toStringTag, { value: this[Symbol.toStringTag] });
                     }
                 }
@@ -2011,6 +2183,10 @@ var $;
         props[field] = get_val;
         return get_val;
     }
+    /**
+     * Convert asynchronous (promise-based) API to synchronous by wrapping function and method calls in a fiber.
+     * @see https://mol.hyoo.ru/#!section=docs/=1fcpsq_1wh0h2
+     */
     function $mol_wire_sync(obj) {
         return new Proxy(obj, {
             get(obj, field) {
@@ -2252,6 +2428,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * CSS Units
+     * @see https://mol.hyoo.ru/#!section=docs/=xwq9q5_f966fg
+     */
     class $mol_style_unit extends $mol_decor {
         literal;
         constructor(value, literal) {
@@ -2298,6 +2478,10 @@ var $;
 var $;
 (function ($) {
     const { per } = $mol_style_unit;
+    /**
+     * CSS Functions
+     * @see https://mol.hyoo.ru/#!section=docs/=xwq9q5_f966fg
+     */
     class $mol_style_func extends $mol_decor {
         name;
         constructor(name, value) {
@@ -2392,6 +2576,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Create record of CSS variables. */
     function $mol_style_prop(prefix, keys) {
         const record = keys.reduce((rec, key) => {
             rec[key] = $mol_style_func.vary(`--${prefix}_${key}`);
@@ -2406,6 +2591,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Theme css variables
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_textarea_demo
+     */
     $.$mol_theme = $mol_style_prop('mol_theme', [
         'back',
         'hover',
@@ -2434,11 +2623,18 @@ var $;
 
 ;
 "use strict";
+// namespace $ {
+// 	$mol_style_attach( '$mol_theme_lights', `:root { --mol_theme_back: oklch( ${ $$.$mol_lights() ? 92 : 20 }% .01 var(--mol_theme_hue) ) }` )
+// }
 
 ;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Gap in CSS
+     * @see https://page.hyoo.ru/#!=msdb74_bm7nsq
+     */
     $.$mol_gap = $mol_style_prop('mol_gap', [
         'page',
         'block',
@@ -2528,6 +2724,12 @@ var $;
         createDocumentFragment: () => $mol_dom_context.document.createDocumentFragment(),
     };
     $.$mol_jsx_frag = '';
+    /**
+     * JSX adapter that makes DOM tree.
+     * Generates global unique ids for every DOM-element by components tree with ids.
+     * Ensures all local ids are unique.
+     * Can reuse an existing nodes by GUIDs when used inside [`mol_jsx_attach`](https://github.com/hyoo-ru/mam_mol/tree/master/jsx/attach).
+     */
     function $mol_jsx(Elem, props, ...childNodes) {
         const id = props && props.id || '';
         const guid = id ? $.$mol_jsx_prefix ? $.$mol_jsx_prefix + '/' + id : id : $.$mol_jsx_prefix;
@@ -2656,6 +2858,7 @@ var $;
 var $;
 (function ($) {
     const TypedArray = Object.getPrototypeOf(Uint8Array);
+    /** Returns string key for any value. */
     function $mol_key(value) {
         primitives: {
             if (typeof value === 'bigint')
@@ -2663,9 +2866,9 @@ var $;
             if (typeof value === 'symbol')
                 return `Symbol(${value.description})`;
             if (!value)
-                return JSON.stringify(value);
+                return JSON.stringify(value); // 0, null, ""
             if (typeof value !== 'object' && typeof value !== 'function')
-                return JSON.stringify(value);
+                return JSON.stringify(value); // boolean, number, string
         }
         caching: {
             let key = $mol_key_store.get(value);
@@ -2742,6 +2945,9 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Decorates method to fiber to ensure it is executed only once inside other fiber.
+     */
     function $mol_wire_method(host, field, descr) {
         if (!descr)
             descr = Reflect.getOwnPropertyDescriptor(host, field);
@@ -2774,6 +2980,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Long-living fiber. */
     class $mol_wire_atom extends $mol_wire_fiber {
         static solo(host, task) {
             const field = task.name + '()';
@@ -2824,7 +3031,11 @@ var $;
             }
             $mol_wire_atom.watching.add(this);
         }
+        /**
+         * Update atom value through another temp fiber.
+         */
         resync(args) {
+            // enforce pulling tasks abort
             for (let cursor = this.pub_from; cursor < this.sub_from; cursor += 2) {
                 const pub = this.data[cursor];
                 if (pub && pub instanceof $mol_wire_task) {
@@ -2885,7 +3096,7 @@ var $;
                     try {
                         next[Symbol.toStringTag] = this[Symbol.toStringTag];
                     }
-                    catch {
+                    catch { // Promises throw in strict mode
                         Object.defineProperty(next, Symbol.toStringTag, { value: this[Symbol.toStringTag] });
                     }
                 }
@@ -2913,6 +3124,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Decorates solo object channel to [mol_wire_atom](../atom/atom.ts). */
     function $mol_wire_solo(host, field, descr) {
         if (!descr)
             descr = Reflect.getOwnPropertyDescriptor(host, field);
@@ -2951,6 +3163,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Reactive memoizing multiplexed property decorator. */
     function $mol_wire_plex(host, field, descr) {
         if (!descr)
             descr = Reflect.getOwnPropertyDescriptor(host, field);
@@ -2989,7 +3202,25 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Reactive memoizing solo property decorator from [mol_wire](../wire/README.md)
+     * @example
+     * '@' $mol_mem
+     * name(next?: string) {
+     * 	return next ?? 'default'
+     * }
+     * @see https://mol.hyoo.ru/#!section=docs/=qxmh6t_sinbmb
+     */
     $.$mol_mem = $mol_wire_solo;
+    /**
+     * Reactive memoizing multiplexed property decorator [mol_wire](../wire/README.md)
+     * @example
+     * '@' $mol_mem_key
+     * name(id: number, next?: string) {
+     *  return next ?? 'default'
+     * }
+     * @see https://mol.hyoo.ru/#!section=docs/=qxmh6t_sinbmb
+     */
     $.$mol_mem_key = $mol_wire_plex;
 })($ || ($ = {}));
 
@@ -3113,6 +3344,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Run code without state changes */
     function $mol_wire_probe(task, def) {
         const warm = $mol_wire_fiber.warm;
         try {
@@ -3133,6 +3365,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Real-time refresh current atom.
+     * Don't use if possible. May reduce performance.
+     */
     function $mol_wire_watch() {
         const atom = $mol_wire_auto();
         if (atom instanceof $mol_wire_atom) {
@@ -3149,6 +3385,11 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Returns closure that returns constant value.
+     * @example
+     * const rnd = $mol_const( Math.random() )
+     */
     function $mol_const(value) {
         const getter = (() => value);
         getter['()'] = value;
@@ -3163,6 +3404,9 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Disable reaping of current subscriber
+     */
     function $mol_wire_solid() {
         let current = $mol_wire_auto();
         if (current.temp)
@@ -3266,6 +3510,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Convert a pseudo-synchronous (Suspense API) API to an explicit asynchronous one (for integrating with external systems). */
     function $mol_wire_async(obj) {
         let fiber;
         const temp = $mol_wire_task.getter(obj);
@@ -3307,6 +3552,7 @@ var $;
 
 ;
 "use strict";
+/** @jsx $mol_jsx */
 var $;
 (function ($) {
     function $mol_view_visible_width() {
@@ -3321,6 +3567,11 @@ var $;
         return suffix;
     }
     $.$mol_view_state_key = $mol_view_state_key;
+    /**
+     * The base class for all visual components. It provides the infrastructure for reactive lazy rendering, handling exceptions.
+     * @see https://mol.hyoo.ru/#!section=docs/=vv2nig_s5zr0f
+     */
+    /// Reactive statefull lazy ViewModel
     class $mol_view extends $mol_object {
         static Root(id) {
             return new this;
@@ -3385,16 +3636,22 @@ var $;
         state_key(suffix = '') {
             return this.$.$mol_view_state_key(suffix);
         }
+        /// Name of element that created when element not found in DOM
         dom_name() {
             return $mol_dom_qname(this.constructor.toString()) || 'div';
         }
+        /// NameSpace of element that created when element not found in DOM
         dom_name_space() { return 'http://www.w3.org/1999/xhtml'; }
+        /// Raw child views
         sub() {
             return [];
         }
+        /// Visible sub views with defined ambient context
+        /// Render all by default
         sub_visible() {
             return this.sub();
         }
+        /// Minimal width that used for lazy rendering
         minimal_width() {
             let min = 0;
             try {
@@ -3416,6 +3673,7 @@ var $;
         maximal_width() {
             return this.minimal_width();
         }
+        /// Minimal height that used for lazy rendering
         minimal_height() {
             let min = 0;
             try {
@@ -3435,11 +3693,11 @@ var $;
         view_rect() {
             if ($mol_wire_probe(() => this.view_rect()) === undefined) {
                 $mol_wire_watch();
-                return null;
+                return null; // don't touch DOM to prevent instant reflow
             }
             else {
                 const { width, height, left, right, top, bottom } = this.dom_node().getBoundingClientRect();
-                return { width, height, left, right, top, bottom };
+                return { width, height, left, right, top, bottom }; // pick to optimize compare
             }
         }
         dom_id() {
@@ -3629,6 +3887,7 @@ var $;
         [$mol_dev_format_head]() {
             return $mol_dev_format_span({}, $mol_dev_format_native(this));
         }
+        /** Deep search view by predicate. */
         *view_find(check, path = []) {
             if (path.length === 0 && check(this))
                 return yield [this];
@@ -3657,6 +3916,7 @@ var $;
                 $mol_fail_log(error);
             }
         }
+        /** Renders path of views to DOM. */
         force_render(path) {
             const kids = this.sub();
             const index = kids.findIndex(item => {
@@ -3671,6 +3931,7 @@ var $;
                 kids[index].force_render(path);
             }
         }
+        /** Renders view to DOM and scroll to it. */
         ensure_visible(view, align = "start") {
             const path = this.view_find(v => v === view).next().value;
             this.force_render(new Set(path));
@@ -3685,6 +3946,9 @@ var $;
             const win = this.$.$mol_dom_context;
             if (win.parent !== win.self && !win.document.hasFocus())
                 return;
+            // new this.$.$mol_after_frame( ()=> {
+            // 	this.dom_node().scrollIntoView({ block: 'start', inline: 'nearest' })
+            // } )
             new this.$.$mol_after_timeout(0, () => {
                 this.focused(true);
             });
@@ -3968,6 +4232,11 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * CSS in TS.
+     * Statically typed CSS style sheets. Following samples show which CSS code are generated from TS code.
+     * @see https://mol.hyoo.ru/#!section=docs/=xwq9q5_f966fg
+     */
     function $mol_style_define(Component, config) {
         return $mol_style_attach(Component.name, $mol_style_sheet(Component, config));
     }
@@ -3977,12 +4246,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Scrolling pane.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_scroll_demo
+         */
         class $mol_scroll extends $.$mol_scroll {
             scroll_top(next, cache) {
                 const el = this.dom_node();
@@ -4032,6 +4306,7 @@ var $;
                 direction: 'column',
                 grow: 1,
                 shrink: 1,
+                // basis: 0,
             },
             outline: 'none',
             align: {
@@ -4049,6 +4324,7 @@ var $;
             contain: 'content',
             '>': {
                 $mol_view: {
+                    // transform: 'translateZ(0)', // enforce gpu scroll in all agents
                     gridArea: '1/1',
                 },
             },
@@ -4165,6 +4441,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Plugin is component without its own DOM element, but instead uses the owner DOM element */
     class $mol_plugin extends $mol_view {
         dom_node_external(next) {
             return next ?? $mol_owning_get(this).host.dom_node();
@@ -4178,6 +4455,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -4199,6 +4477,8 @@ var $;
             maxHeight: per(100),
             boxSizing: 'border-box',
             color: $mol_theme.text,
+            // backdropFilter: blur( `3px` ), enforces layering
+            // zIndex: 0 ,
             ':focus': {
                 outline: 'none',
             },
@@ -4316,6 +4596,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Theme css variables
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_textarea_demo
+     */
     $.$bog_theme = $mol_style_prop('mol_theme', [
         'back',
         'background',
@@ -4332,6 +4616,10 @@ var $;
         'image',
         'spirit',
     ]);
+    /**
+     * Available theme names.
+     * Add new theme to theme.css and add its name here.
+     */
     $.$bog_theme_names = [
         '$mol_theme_giper_smash_dark',
         '$mol_theme_giper_smash_light',
@@ -4546,6 +4834,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Decorates method to fiber to ensure it is executed only once inside other fiber from [mol_wire](../wire/README.md)
+     * @see https://mol.hyoo.ru/#!section=docs/=1fcpsq_1wh0h2
+     */
     $.$mol_action = $mol_wire_method;
 })($ || ($ = {}));
 
@@ -4622,7 +4914,8 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    let buf = new Uint8Array(2 ** 12);
+    let buf = new Uint8Array(2 ** 12); // 4KB Mem Page
+    /** Temporary buffer. Recursive usage isn't supported. */
     function $mol_charset_buffer(size) {
         if (buf.byteLength < size)
             buf = new Uint8Array(size);
@@ -4644,19 +4937,19 @@ var $;
         let pos = from;
         for (let i = 0; i < str.length; i++) {
             let code = str.charCodeAt(i);
-            if (code < 0x80) {
+            if (code < 0x80) { // ASCII - 1 octet
                 buf[pos++] = code;
             }
-            else if (code < 0x800) {
+            else if (code < 0x800) { // 2 octet
                 buf[pos++] = 0xc0 | (code >> 6);
                 buf[pos++] = 0x80 | (code & 0x3f);
             }
-            else if (code < 0xd800 || code >= 0xe000) {
+            else if (code < 0xd800 || code >= 0xe000) { // 3 octet
                 buf[pos++] = 0xe0 | (code >> 12);
                 buf[pos++] = 0x80 | ((code >> 6) & 0x3f);
                 buf[pos++] = 0x80 | (code & 0x3f);
             }
-            else {
+            else { // surrogate pair
                 const point = ((code - 0xd800) << 10) + str.charCodeAt(++i) + 0x2400;
                 buf[pos++] = 0xf0 | (point >> 18);
                 buf[pos++] = 0x80 | ((point >> 12) & 0x3f);
@@ -4720,12 +5013,16 @@ var $;
 (function ($) {
     let file_modes;
     (function (file_modes) {
+        /** create if it doesn't already exist */
         file_modes[file_modes["create"] = $node.fs.constants.O_CREAT] = "create";
+        /** truncate to zero size if it already exists */
         file_modes[file_modes["exists_truncate"] = $node.fs.constants.O_TRUNC] = "exists_truncate";
+        /** throw exception if it already exists */
         file_modes[file_modes["exists_fail"] = $node.fs.constants.O_EXCL] = "exists_fail";
         file_modes[file_modes["read_only"] = $node.fs.constants.O_RDONLY] = "read_only";
         file_modes[file_modes["write_only"] = $node.fs.constants.O_WRONLY] = "write_only";
         file_modes[file_modes["read_write"] = $node.fs.constants.O_RDWR] = "read_write";
+        /** data will be appended to the end */
         file_modes[file_modes["append"] = $node.fs.constants.O_APPEND] = "append";
     })(file_modes || (file_modes = {}));
     function mode_mask(modes) {
@@ -4790,12 +5087,24 @@ var $;
         root() {
             const path = this.path();
             const base = this.constructor.base;
+            // Если путь выше или равен base или если parent такойже как и this - считаем это корнем
             return base.startsWith(path) || this == this.parent();
         }
         stat(next, virt) {
             const path = this.path();
             const parent = this.parent();
+            // Отслеживать проверку наличия родительской папки не стоит до корня диска
+            // Лучше ограничить mam-ом
             if (!this.root()) {
+                /*
+                Если parent папка удалилась, надо ресетнуть все объекты в ней на любой глубине.
+                Например, rm -rf с последующим git pull: parent папка может удалиться, потом создасться,
+                а текущая папка успеет только удалиться до момента выполнения stat.
+                Поэтому parent.exists() не запустит перевычисления, нужна именно parent.version()
+
+                Однако, parent.version() меняется не только при удалении, будет ложное срабатывание
+                С этим придется мириться, красивого решения пока нет.
+                */
                 parent.version();
             }
             parent.watcher();
@@ -4809,9 +5118,19 @@ var $;
             if (/([\/\\]\.|___$)/.test(path))
                 return;
             const file = this.relative(path.at(-1) === '/' ? path.slice(0, -1) : path);
+            // console.log(type, path)
+            // add (change): добавился файл - у parent надо обновить список sub, если он был заюзан
+            // change, unlink (rename): обновился или удалился файл - ресетим
+            // addDir (change), добавилась папка, у parent обновляем список директорий в sub
+            // дочерние ресетим
+            // unlinkDir (rename), удалилась папка, ресетим ее
+            // stat у всех дочерних обновится сам, т.к. связан с parent.version()
             this.changed.add(file);
             if (!this.watching)
                 return;
+            // throttle, пока события поступают не сбрасываем.
+            // аналог awaitWriteFinish из chokidar
+            // интервалы между change-сообщениями модифицируемого файла должны быть меньше watch_debounce
             this.frame?.destructor();
             this.frame = new this.$.$mol_after_timeout(this.watch_debounce(), () => {
                 if (!this.watching)
@@ -4820,8 +5139,16 @@ var $;
                 $mol_wire_async(this).flush();
             });
         }
+        /**
+         * Должно быть больше, чем время между событиями от вотчера при записи внешним процессом.
+         * Иначе запуск ресетов паралельно с изменением может привести к неконсистентности.
+         */
         static watch_debounce() { return 500; }
         static flush() {
+            // Пока flush работает, вотчер сюда не заходит, но может добавлять новые изменения
+            // на каждом перезапуске они применятся
+            // Пока run выполняется, изменения накапливаются, в конце run вызывается flush
+            // Пока применяются изменения, run должен ожидать конца flush
             for (const file of this.changed) {
                 const parent = file.parent();
                 try {
@@ -4836,16 +5163,32 @@ var $;
             }
             this.changed.clear();
             this.watching = true;
+            // this.watch_wd?.destructor()
+            // this.watch_wd = null
         }
         static watching = true;
         static lock = new $mol_lock;
         static watch_off(path) {
             this.watching = false;
+            // run должен ожидать конца flush
             this.flush();
             this.watching = false;
+            /*
+            watch запаздывает и событие может прилететь через 3 сек после окончания сайд эффекта
+            поэтому добавляем папку, которую меняет side_effect
+            Когда дойдет до выполнения flush, он ресетнет ее
+            
+            Иначе будут лишние срабатывания
+            Например, удалили hyoo/board, watch ресетит и exists начинает отдавать false, срабатывает git clone
+            Сразу после него событие addDir еще не успело прийти,
+            на следующем перезапуске вызывается git pull, т.к.
+            с точки зрения реактивной системы hyoo/board еще не существует.
+            */
             this.changed.add(this.absolute(path));
         }
+        // protected static watch_wd = null as null | $mol_after_timeout
         static unwatched(side_effect, affected_dir) {
+            // ждем, пока выполнится предыдущий unwatched
             const unlock = this.lock.grab();
             this.watch_off(affected_dir);
             try {
@@ -4868,6 +5211,7 @@ var $;
         modified() { return this.stat()?.mtime ?? null; }
         version() {
             const next = this.stat()?.mtime.getTime().toString(36).toUpperCase() ?? '';
+            // console.log('version', next, this.path())
             return next;
         }
         info(path) { return null; }
@@ -4885,15 +5229,19 @@ var $;
         writable(opts) {
             return new WritableStream;
         }
+        // open( ... modes: readonly $mol_file_mode[] ) { return 0 }
         buffer(next) {
+            // Если версия пустая - возвращаем пустой буфер
             let readed = new Uint8Array();
             if (next === undefined) {
+                // Если меняется версия файла, буфер надо перечитать
                 if (this.version())
                     readed = this.read();
             }
             const prev = $mol_mem_cached(() => this.buffer());
             const changed = prev === undefined || !$mol_compare_array(prev, next ?? readed);
             if (prev !== undefined && changed) {
+                // Логируем, если повторно читаем/пишем и буфер поменялся
                 this.$.$mol_log3_rise({
                     place: `$mol_file_node.buffer()`,
                     message: 'Changed',
@@ -4902,6 +5250,11 @@ var $;
             }
             if (next === undefined)
                 return changed ? readed : prev;
+            // Если буфер при записи не поменялся и файл не удаляли перед этим - не записываем новую версию.
+            // Если записывать, это приведет к смене mtime и вотчер снова триггернется, даже если содержимое файла не поменялось.
+            // В этом алгоритме есть изъян.
+            // Если файл записали, потом отключили вотчер, кто-то из вне его поменял, потом включили вотчер, снова записали тот же буфер,
+            // то буфер не запишется на диск, т.к. кэш не консистентен с диском.
             if (!changed && this.exists())
                 return prev;
             this.parent().exists(true);
@@ -4937,13 +5290,21 @@ var $;
             }
             return null;
         }
+        // static watch_root = ''
+        // static watcher_warned = false
         watcher() {
+            // const constructor = this.constructor as typeof $mol_file_base
+            // if (! constructor.watcher_warned) {
+            // 	console.warn(`${constructor}.watcher() not implemented`)
+            // 	constructor.watcher_warned = true
+            // }
             return {
                 destructor() { }
             };
         }
         exists(next) {
             const exists = Boolean(this.stat());
+            // console.log('exists current', exists, 'next', next, this.path())
             if (next === undefined)
                 return exists;
             if (next === exists)
@@ -4969,6 +5330,10 @@ var $;
             return match ? match[1].substring(1) : '';
         }
         text(next, virt) {
+            // Если записываем text, и вотчер ресетнул записанный файл,
+            // то надо снова его обновить, вызвать логику, которая делала пуш в text.
+            // Например файл удалили, потом снова создали, версия поменялась - перезаписываем
+            // Если использовать version, то вновь созданный файл, через вотчер запустит свое пересоздание
             if (next !== undefined)
                 this.exists();
             return this.text_int(next, virt);
@@ -4993,6 +5358,7 @@ var $;
             if (this.type() !== 'dir')
                 return [];
             this.version();
+            // Если дочерний file удалился, список надо обновить
             return this.kids().filter(file => file.exists());
         }
         resolve(path) {
@@ -5137,10 +5503,15 @@ var $;
         watcher(reset) {
             const path = this.path();
             const root = this.root();
+            // Если папки/файла нет, watch упадет с ошибкой
+            // exists обратится к parent.version и parent.watcher
+            // Поэтому у root-папки и выше не надо вызывать exists, иначе поднимется выше base до корня диска
+            // exists вызывать надо, что б пересоздавать вотчер при появлении папки или файла
             if (!root && !this.exists())
                 return super.watcher();
             let watcher;
             try {
+                // Между exists и watch файл может удалиться, в любом случае надо обрабатывать ENOENT
                 watcher = $node.fs.watch(path);
             }
             catch (error) {
@@ -5150,6 +5521,8 @@ var $;
                 if (root || error.code !== 'ENOENT') {
                     this.$.$mol_fail_log(error);
                 }
+                // Если файла нет - вотчер не создается, создастся потом, когда exists поменяется на true.
+                // Если создание упало с другой ошибкой - не ломаем работу mol_file, деградируем до не реактивной fs.
                 return super.watcher();
             }
             watcher.on('change', (type, name) => {
@@ -5161,6 +5534,7 @@ var $;
             watcher.on('error', e => this.$.$mol_fail_log(e));
             let destructed = false;
             watcher.on('close', () => {
+                // Если в процессе работы вотчер сам закрылся, надо его переоткрыть
                 if (!destructed)
                     setTimeout(() => $mol_wire_async(this).watcher(null), 500);
             });
@@ -5345,6 +5719,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** State of arguments like `foo=bar xxx` */
     class $mol_state_arg extends $mol_object {
         prefix;
         static prolog = '';
@@ -5466,6 +5841,10 @@ var $;
             return false;
         return null;
     }
+    /**
+     * Switcher between light/dark themes (usually for `mol_theme_auto` plugin).
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_lights_demo
+     */
     function $mol_lights(next) {
         const arg = parse(this.$mol_state_arg.value('mol_lights'));
         const base = this.$mol_media.match('(prefers-color-scheme: light)');
@@ -5488,6 +5867,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -5498,9 +5878,11 @@ var $;
             themes_default() {
                 return this.$.$bog_theme_names;
             }
+            /** Stores current mode in localStorage. Defaults to 'system'. */
             mode(next) {
                 return this.$.$mol_state_local.value(`${this}.mode()`, next) ?? 'system';
             }
+            /** Cycles: system → light → dark → system (skips 'custom') */
             mode_next() {
                 const cycle = ['system', 'light', 'dark'];
                 const i = cycle.indexOf(this.mode());
@@ -5533,6 +5915,7 @@ var $;
                         return this.theme_light();
                     return themes[index % themes.length];
                 }
+                // system — follow browser preference
                 return this.$.$mol_lights() ? this.theme_light() : this.theme_dark();
             }
             theme_next() {
@@ -5543,6 +5926,7 @@ var $;
                 const i = cycle.indexOf(this.mode());
                 this.mode(cycle[i <= 0 ? cycle.length - 1 : i - 1]);
             }
+            /** Called by picker. Sets mode to light/dark or custom for themed palettes. */
             theme_set(index) {
                 const themes = this.themes();
                 if (themes.length === 0)
@@ -5601,12 +5985,16 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Mixin view logic to DOM node of another component.
+         */
         class $mol_ghost extends $.$mol_ghost {
             dom_node_external(next) {
                 return this.Sub().dom_node(next);
@@ -5676,12 +6064,16 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Marker on top of another component with tracking of its position.
+         */
         class $mol_follower extends $.$mol_follower {
             pos() {
                 const self_rect = this.view_rect();
@@ -5818,6 +6210,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Z-index values for layers
+     * https://page.hyoo.ru/#!=xthcpx_wqmiba
+     */
     $.$mol_layer = $mol_style_prop('mol_layer', [
         'hover',
         'focus',
@@ -5837,12 +6233,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * `Bubble` that can be shown anchored to `Anchor` element.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_pop_demo
+         */
         class $mol_pop extends $.$mol_pop {
             showed(next = false) {
                 this.focused();
@@ -5988,6 +6389,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+    * Key names code for hotkey
+    * @see [mol_hotkey](../../hotkey/hotkey.view.ts)
+    */
     let $mol_keyboard_code;
     (function ($mol_keyboard_code) {
         $mol_keyboard_code[$mol_keyboard_code["backspace"] = 8] = "backspace";
@@ -6096,12 +6501,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Plugin which adds handlers for keyboard keys.
+         * @see [mol_keyboard_code](../keyboard/code/code.ts)
+         */
         class $mol_hotkey extends $.$mol_hotkey {
             key() {
                 return super.key();
@@ -6251,12 +6661,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * An input field for entering single line text.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_string_demo
+         */
         class $mol_string extends $.$mol_string {
             event_change(next) {
                 if (!next)
@@ -6361,6 +6776,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Localisation in $mol framework
+     * @see https://mol.hyoo.ru/#!section=docs/=s5aqnb_odub8l
+     */
     class $mol_locale extends $mol_object {
         static lang_default() {
             return 'en';
@@ -6495,12 +6914,18 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * The list of rows with lazy/virtual rendering support based on `minimal_height` of rows.
+         * `mol_list` should contain only components that inherits `mol_view`. You should not place raw strings or numbers in list.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_list_demo
+         */
         class $mol_list extends $.$mol_list {
             sub() {
                 const rows = this.rows();
@@ -6542,9 +6967,11 @@ var $;
                 const gap_after = $mol_mem_cached(() => this.gap_after()) ?? 0;
                 let top = Math.ceil(rect?.top ?? 0) + gap_before;
                 let bottom = Math.ceil(rect?.bottom ?? 0) - gap_after;
+                // change nothing when already covers all limits
                 if (top <= limit_top && bottom >= limit_bottom) {
                     return [min2, max2];
                 }
+                // jumps when fully over limits
                 if (anchoring && ((bottom < limit_top) || (top > limit_bottom))) {
                     min = 0;
                     top = Math.ceil(rect?.top ?? 0);
@@ -6561,18 +6988,22 @@ var $;
                 }
                 let top2 = top;
                 let bottom2 = bottom;
+                // force recalc min when overlapse top limit
                 if (anchoring && (top < limit_top) && (bottom < limit_bottom) && (max < kids.length)) {
                     min2 = max;
                     top2 = bottom;
                 }
+                // force recalc max when overlapse bottom limit
                 if ((bottom > limit_bottom) && (top > limit_top) && (min > 0)) {
                     max2 = min;
                     bottom2 = top;
                 }
+                // extend min to cover top limit
                 while (anchoring && ((top2 > limit_top) && (min2 > 0))) {
                     --min2;
                     top2 -= this.item_height_min(min2);
                 }
+                // extend max to cover bottom limit
                 while (bottom2 < limit_bottom && max2 < kids.length) {
                     bottom2 += this.item_height_min(max2);
                     ++max2;
@@ -6701,6 +7132,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_button) = class $mol_button extends ($.$mol_view) {
 		event_activate(next){
@@ -6789,12 +7221,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Simple button.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_button_demo
+         */
         class $mol_button extends $.$mol_button {
             disabled() {
                 return !this.enabled();
@@ -6810,6 +7247,7 @@ var $;
                     this.status([null]);
                 }
                 catch (error) {
+                    // Calling actions from catch section, if throwing promise breaks idempotency
                     Promise.resolve().then(() => this.status([error]));
                     $mol_fail_hidden(error);
                 }
@@ -6879,6 +7317,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_button_minor) = class $mol_button_minor extends ($.$mol_button_typed) {};
 
@@ -6892,6 +7331,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$bog_theme_picker_row) = class $bog_theme_picker_row extends ($.$mol_button_minor) {
@@ -6920,6 +7360,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -7043,12 +7484,16 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Theme picker popup with search and list
+         */
         class $bog_theme_picker extends $.$bog_theme_picker {
             theme_rows() {
                 const themes = this.filtered_themes();
@@ -7058,6 +7503,7 @@ var $;
                 const query = this.query().toLowerCase().trim();
                 const themes = this.$.$bog_theme_names;
                 const filtered = query ? themes.filter(name => name.toLowerCase().includes(query)) : [...themes];
+                // Reset focused index when filter changes
                 const current = this.focused_index();
                 if (current >= filtered.length) {
                     this.focused_index(-1);
@@ -7079,12 +7525,14 @@ var $;
                 if (global_index !== -1) {
                     this.theme_auto().theme_set(global_index);
                 }
+                // Close popup
                 this.close();
                 return null;
             }
             theme_hover(index, event) {
                 if (!event)
                     return null;
+                // Update focused index on hover (this will apply preview via theme_focused)
                 this.focused_index(index);
                 const themes = this.filtered_themes();
                 const theme_name = themes[index];
@@ -7103,6 +7551,7 @@ var $;
                     case 'ArrowDown':
                         event.preventDefault();
                         event.stopPropagation();
+                        // If focus is on search (-1), start from first item
                         if (current === -1) {
                             current = 0;
                         }
@@ -7115,6 +7564,7 @@ var $;
                     case 'ArrowUp':
                         event.preventDefault();
                         event.stopPropagation();
+                        // If focus is on search (-1), start from last item
                         if (current === -1) {
                             current = themes.length - 1;
                         }
@@ -7144,6 +7594,7 @@ var $;
                 if (global_index !== -1) {
                     this.theme_auto().theme_set(global_index);
                 }
+                // Close popup
                 this.close();
             }
             preview_theme(index) {
@@ -7215,6 +7666,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** State of time moment */
     class $mol_state_time extends $mol_object {
         static task(precision, reset) {
             if (precision) {
@@ -7241,12 +7693,14 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /** Base SVG component to display SVG images or icons. */
         class $mol_svg extends $.$mol_svg {
             computed_style() {
                 const win = this.$.$mol_dom_context;
@@ -7306,6 +7760,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_svg_path) = class $mol_svg_path extends ($.$mol_svg) {
 		geometry(){
@@ -7322,6 +7777,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_icon) = class $mol_icon extends ($.$mol_svg_root) {
@@ -7359,6 +7815,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_icon_white_balance_sunny) = class $mol_icon_white_balance_sunny extends ($.$mol_icon) {
 		path(){
@@ -7369,6 +7826,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_icon_weather_night) = class $mol_icon_weather_night extends ($.$mol_icon) {
@@ -7381,6 +7839,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_icon_monitor) = class $mol_icon_monitor extends ($.$mol_icon) {
 		path(){
@@ -7391,6 +7850,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$bog_theme_toggle) = class $bog_theme_toggle extends ($.$mol_pop) {
@@ -7508,6 +7968,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -7608,6 +8069,7 @@ var $;
                         search.focused(true);
                     }
                     catch (e) {
+                        // Ignore focus errors
                     }
                 }, 100);
             }
@@ -7678,6 +8140,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -7752,12 +8215,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * The component which contains head and content.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_section_demo
+         */
         class $mol_section extends $.$mol_section {
             title_dom_name() {
                 return 'h' + this.level();
@@ -7796,6 +8264,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -7866,6 +8335,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_dimmer) = class $mol_dimmer extends ($.$mol_paragraph) {
 		parts(){
@@ -7915,8 +8385,10 @@ var $;
 var $;
 (function ($) {
     let x = /x/[Symbol.matchAll];
+    /** Type safe reguar expression builder */
     class $mol_regexp extends RegExp {
         groups;
+        /** Prefer to use $mol_regexp.from */
         constructor(source, flags = 'gsu', groups = []) {
             super(source, flags);
             this.groups = groups;
@@ -7936,12 +8408,14 @@ var $;
                 this.lastIndex = index;
             }
         }
+        /** Parses input and returns found capture groups or null */
         [Symbol.match](str) {
             const res = [...this[Symbol.matchAll](str)].filter(r => r.groups).map(r => r[0]);
             if (!res.length)
                 return null;
             return res;
         }
+        /** Splits string by regexp edges */
         [Symbol.split](str) {
             const res = [];
             let token_last = null;
@@ -7996,12 +8470,14 @@ var $;
         get native() {
             return new RegExp(this.source, this.flags);
         }
+        /** Makes regexp that greedy repeats this pattern with delimiter */
         static separated(chunk, sep) {
             return $mol_regexp.from([
                 $mol_regexp.repeat_greedy([[chunk], sep], 0),
                 chunk,
             ]);
         }
+        /** Makes regexp that non-greedy repeats this pattern from min to max count */
         static repeat(source, min = 0, max = Number.POSITIVE_INFINITY) {
             const regexp = $mol_regexp.from(source);
             const upper = Number.isFinite(max) ? max : '';
@@ -8017,6 +8493,7 @@ var $;
             };
             return regexp2;
         }
+        /** Makes regexp that greedy repeats this pattern from min to max count */
         static repeat_greedy(source, min = 0, max = Number.POSITIVE_INFINITY) {
             const regexp = $mol_regexp.from(source);
             const upper = Number.isFinite(max) ? max : '';
@@ -8032,6 +8509,7 @@ var $;
             };
             return regexp2;
         }
+        /** Makes regexp that match any of options */
         static vary(sources, flags = 'gsu') {
             const groups = [];
             const chunks = sources.map(source => {
@@ -8041,17 +8519,21 @@ var $;
             });
             return new $mol_regexp(`(?:${chunks.join('|')})`, flags, groups);
         }
+        /** Makes regexp that allow absent of this pattern */
         static optional(source) {
             return $mol_regexp.repeat_greedy(source, 0, 1);
         }
+        /** Makes regexp that look ahead for pattern */
         static force_after(source) {
             const regexp = $mol_regexp.from(source);
             return new $mol_regexp(`(?=${regexp.source})`, regexp.flags, regexp.groups);
         }
+        /** Makes regexp that look ahead for pattern */
         static forbid_after(source) {
             const regexp = $mol_regexp.from(source);
             return new $mol_regexp(`(?!${regexp.source})`, regexp.flags, regexp.groups);
         }
+        /** Converts some js values to regexp */
         static from(source, { ignoreCase, multiline } = {
             ignoreCase: false,
             multiline: false,
@@ -8152,9 +8634,11 @@ var $;
                 return regexp;
             }
         }
+        /** Makes regexp which includes only unicode category */
         static unicode_only(...category) {
             return new $mol_regexp(`\\p{${category.join('=')}}`);
         }
+        /** Makes regexp which excludes unicode category */
         static unicode_except(...category) {
             return new $mol_regexp(`\\P{${category.join('=')}}`);
         }
@@ -8195,12 +8679,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Output text with dimmed mismatched substrings.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_dimmer_demo
+         */
         class $mol_dimmer extends $.$mol_dimmer {
             parts() {
                 const needle = this.needle();
@@ -8277,6 +8766,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -8399,6 +8889,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Creates lexer by dictionary of lexems. Lexem that started first wins. Then lexem that declared earlier wins. Use regexp capture to take parts of token. */
     class $mol_syntax2 {
         lexems;
         constructor(lexems) {
@@ -8470,6 +8961,8 @@ var $;
         'code': /```(.+?)```|;;(.+?);;|`(.+?)`/,
         'insert': /\+\+(.+?)\+\+/,
         'delete': /~~(.+?)~~|--(.+?)--/,
+        // 'remark' : /(\()(.+?)(\))/ ,
+        // 'quote' : /(")(.+?)(")/ ,
         'embed': /""(?:(.*?)\\)?(.*?)""/,
         'link': /\\\\(?:(.*?)\\)?(.*?)\\\\/,
         'image-link': /!\[([^\[\]]*?)\]\((.*?)\)/,
@@ -8499,6 +8992,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -8515,6 +9009,7 @@ var $;
             tokens(path) {
                 const tokens = [];
                 const text = (path.length > 0)
+                    // @FIXME: this logic compatible only with `string`
                     ? this.tokens(path.slice(0, path.length - 1))[path[path.length - 1]].found.slice(1, -1)
                     : this.text();
                 this.syntax().tokenize(text, (name, found, chunks) => {
@@ -8661,6 +9156,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_icon_clipboard_outline) = class $mol_icon_clipboard_outline extends ($.$mol_icon) {
 		path(){
@@ -8671,6 +9167,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_button_copy) = class $mol_button_copy extends ($.$mol_button_minor) {
@@ -8731,12 +9228,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Button copy text() value to clipboard
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_button_demo
+         */
         class $mol_button_copy extends $.$mol_button_copy {
             data() {
                 return Object.fromEntries(this.blobs().map(blob => [blob.type, blob]));
@@ -8851,12 +9353,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Code visualizer.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_text_code_demo
+         */
         class $mol_text_code extends $.$mol_text_code {
             render_visible_only() {
                 return this.$.$mol_support_css_overflow_anchor();
@@ -8995,6 +9502,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_check) = class $mol_check extends ($.$mol_button_minor) {
 		checked(next){
@@ -9075,12 +9583,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Checkbox UI component. See Variants for more concrete implementations.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_check_box_demo
+         */
         class $mol_check extends $.$mol_check {
             click(next) {
                 const event = next ? $mol_dom_event.wrap(next) : null;
@@ -9116,6 +9629,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_check_expand) = class $mol_check_expand extends ($.$mol_check) {
@@ -9153,12 +9667,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Expander for trees, lists, etc
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_check_expand_demo
+         */
         class $mol_check_expand extends $.$mol_check_expand {
             level_style() {
                 return `${this.level() * 1 - 1}rem`;
@@ -9383,6 +9902,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -9601,12 +10121,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Dynamic hyperlink. It can add, change or remove parameters. A link that leads to the current page has [mol_link_current] attribute set to true.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_link_demo
+         */
         class $mol_link extends $.$mol_link {
             uri_toggle() {
                 return this.current() ? this.uri_off() : this.uri();
@@ -9788,6 +10313,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -9861,6 +10387,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -9870,6 +10397,7 @@ var $;
         class $mol_link_iconed extends $.$mol_link_iconed {
             icon() {
                 return `https://favicon.yandex.net/favicon/${this.host()}?color=0,0,0,0&size=32&stub=1`;
+                // return `https://api.faviconkit.com/${ this.host() }/16`
             }
             host() {
                 const base = this.$.$mol_state_arg.href();
@@ -9973,6 +10501,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -10062,6 +10591,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_frame) = class $mol_frame extends ($.$mol_embed_native) {
 		allow(){
@@ -10108,14 +10638,19 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_frame_demo
+         */
         class $mol_frame extends $.$mol_frame {
             window() {
+                // if( this.html() ) return ( this.dom_node() as HTMLIFrameElement ).contentWindow!
                 return super.window();
             }
             allow() {
@@ -10204,6 +10739,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -10237,6 +10773,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -10277,6 +10814,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -10313,6 +10851,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -10398,6 +10937,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -10494,12 +11034,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Component which expands any content on title click.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_expander_demo
+         */
         class $mol_expander extends $.$mol_expander {
             rows() {
                 return [
@@ -10829,12 +11374,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Markdown visualizer.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_text_demo
+         */
         class $mol_text extends $.$mol_text {
             flow_tokens() {
                 const tokens = [];
@@ -11206,12 +11756,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Represents a common card. It can has several statuses at bottom line.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_card_demo/readme
+         */
         class $mol_card extends $.$mol_card {
             rows() {
                 return [
@@ -11269,6 +11824,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$bog_pay_app_games) = class $bog_pay_app_games extends ($.$mol_page) {
@@ -11397,6 +11953,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -11417,11 +11974,13 @@ var $;
     (function ($$) {
         const { rem } = $mol_style_unit;
         $mol_style_define($bog_pay_app_games, {
+            // Контейнер страницы
             Body_content: {
                 display: 'block',
                 padding: $mol_gap.block,
                 maxWidth: rem(90),
             },
+            // Хиро-заголовок: левая чёрная часть
             Games_section: {
                 display: 'inline',
                 margin: { right: $mol_gap.text },
@@ -11433,6 +11992,7 @@ var $;
                     },
                 },
             },
+            // Хиро-заголовок: правая синяя часть
             Bog_ping: {
                 Title: {
                     font: {
@@ -11442,6 +12002,7 @@ var $;
                     color: $mol_theme.focus,
                 },
             },
+            // Грид карточек игр
             Games_grid: {
                 display: 'grid',
                 gridTemplateColumns: 'repeat( auto-fit, minmax(20rem, 1fr) )',
@@ -11449,6 +12010,7 @@ var $;
                 margin: [$mol_gap.block, 0],
                 align: { items: 'stretch' },
             },
+            // Карточки (база)
             Game1: {
                 background: { color: $mol_theme.card },
                 padding: $mol_gap.block,
@@ -11478,6 +12040,7 @@ var $;
                     boxShadow: `0 .5rem 1.5rem rgba(0,0,0,.08), 0 0 0 1px var(--mol_theme_line)`,
                 },
             },
+            // Иконки
             Game1_icon: {
                 fontSize: rem(2.5),
                 margin: { bottom: $mol_gap.text },
@@ -11490,6 +12053,7 @@ var $;
                 fontSize: rem(2.5),
                 margin: { bottom: $mol_gap.text },
             },
+            // Заголовки карточек
             Game1_title: {
                 font: { weight: 700, size: rem(1.25) },
                 color: $mol_theme.text,
@@ -11505,6 +12069,7 @@ var $;
                 color: $mol_theme.text,
                 margin: { bottom: $mol_gap.text },
             },
+            // Текст карточек
             Game1_text: {
                 color: $mol_theme.text,
                 opacity: 0.8,
@@ -11531,6 +12096,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_button_open) = class $mol_button_open extends ($.$mol_button_minor) {
@@ -11601,6 +12167,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -11615,12 +12182,17 @@ var $;
                     return files;
                 }
                 catch (error) {
+                    // Calling actions from catch section, if throwing promise breaks idempotency
                     Promise.resolve().then(() => this.status([error]));
                     $mol_fail_hidden(error);
                 }
             }
         }
         $$.$mol_button_open = $mol_button_open;
+        /**
+         * File open button
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_button_demo
+         */
         class $mol_button_open_native extends $.$mol_button_open_native {
             dom_node() {
                 return super.dom_node();
@@ -11653,6 +12225,9 @@ var $;
 
 ;
 "use strict";
+// namespace $ {
+// 	$mol_report_bugsnag = '18acf016ed2a2a4cc4445daa9dd2dd3c'
+// }
 
 ;
 "use strict";
@@ -11661,6 +12236,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Checks for given runtype and returns tagged version of returned type.
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_data_tagged_demo
+     */
     function $mol_data_tagged(config) {
         return config;
     }
@@ -11703,6 +12282,11 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Combines list of unary functions/classes to one function.
+     *
+     * 	const reparse = $mol_data_pipe( JSON.stringify , JSON.parse )
+     **/
     function $mol_data_pipe(...funcs) {
         return $mol_data_setup(function (input) {
             let value = input;
@@ -11727,6 +12311,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Checks for number and returns number type.
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_data_number_demo
+     */
     $.$mol_data_number = (val) => {
         if (typeof val === 'number')
             return val;
@@ -11738,6 +12326,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Checks for integer and returns number type.
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_data_integer_demo
+     */
     function $mol_data_integer(val) {
         const val2 = $mol_data_number(val);
         if (Math.floor(val2) === val2)
@@ -11758,24 +12350,37 @@ var $;
             $mol_fail(new $mol_data_error(`${rank} is out of Ran range`));
         }),
     }).$hyoo_crus_rank;
+    /** Makes Rank from Tier and Fame names. */
     function $hyoo_crus_rank_make(tier, fame) {
         return ($hyoo_crus_rank_tier[tier] | $hyoo_crus_rank_rate[fame]);
     }
     $.$hyoo_crus_rank_make = $hyoo_crus_rank_make;
+    /** Access level: deny, read, join, post, rule */
     let $hyoo_crus_rank_tier;
     (function ($hyoo_crus_rank_tier) {
+        /** Forbidden. There is no access, neither read nor write. */
         $hyoo_crus_rank_tier[$hyoo_crus_rank_tier["deny"] = 0] = "deny";
+        /** Read only */
         $hyoo_crus_rank_tier[$hyoo_crus_rank_tier["read"] = 16] = "read";
+        /** Join only (Pass) */
         $hyoo_crus_rank_tier[$hyoo_crus_rank_tier["join"] = 48] = "join";
+        /** Post changes (Pass, Sand) */
         $hyoo_crus_rank_tier[$hyoo_crus_rank_tier["post"] = 112] = "post";
+        /** Full control (Pass, Sand, Gift) */
         $hyoo_crus_rank_tier[$hyoo_crus_rank_tier["rule"] = 240] = "rule";
     })($hyoo_crus_rank_tier = $.$hyoo_crus_rank_tier || ($.$hyoo_crus_rank_tier = {}));
+    /** Ease of making changes, depends on fame: evil, harm, even, nice, good */
     let $hyoo_crus_rank_rate;
     (function ($hyoo_crus_rank_rate) {
+        /** Very hard challenge. Minutes to put. */
         $hyoo_crus_rank_rate[$hyoo_crus_rank_rate["late"] = 0] = "late";
+        /** Hard challendge. Tens seconds to put. */
         $hyoo_crus_rank_rate[$hyoo_crus_rank_rate["long"] = 3] = "long";
+        /** Required some work to prevent spam. Seconds to put. */
         $hyoo_crus_rank_rate[$hyoo_crus_rank_rate["slow"] = 7] = "slow";
+        /** Slow mode. Hundred milliseconds to put. */
         $hyoo_crus_rank_rate[$hyoo_crus_rank_rate["fast"] = 11] = "fast";
+        /** No work required. As fast as possble. Milliseconds to put. */
         $hyoo_crus_rank_rate[$hyoo_crus_rank_rate["just"] = 15] = "just";
     })($hyoo_crus_rank_rate = $.$hyoo_crus_rank_rate || ($.$hyoo_crus_rank_rate = {}));
     $.$hyoo_crus_rank_deny = $hyoo_crus_rank_make('deny', 'late');
@@ -11797,13 +12402,21 @@ var $;
 (function ($) {
     let $hyoo_crus_part;
     (function ($hyoo_crus_part) {
+        /** Land header for the following parts. */
         $hyoo_crus_part[$hyoo_crus_part["land"] = 3] = "land";
+        /** Land face. */
         $hyoo_crus_part[$hyoo_crus_part["face"] = 11] = "face";
+        /** Public key. First writes wins. */
         $hyoo_crus_part[$hyoo_crus_part["pass"] = 255] = "pass";
+        /** Rights/Keys sharing. Last writes wins. */
         $hyoo_crus_part[$hyoo_crus_part["gift"] = 247] = "gift";
+        /** Changeable data. Last writes wins. */
         $hyoo_crus_part[$hyoo_crus_part["sand"] = 8] = "sand";
+        /** Blob response. */
         $hyoo_crus_part[$hyoo_crus_part["rock"] = 5] = "rock";
+        /** B+Tree root bucket. */
         $hyoo_crus_part[$hyoo_crus_part["root"] = 1] = "root";
+        /** B+Tree branch bucket. */
         $hyoo_crus_part[$hyoo_crus_part["buck"] = 9] = "buck";
     })($hyoo_crus_part = $.$hyoo_crus_part || ($.$hyoo_crus_part = {}));
 })($ || ($ = {}));
@@ -11849,6 +12462,7 @@ var $;
 var $;
 (function ($) {
     function $mol_base64_decode_node(base64Str) {
+        // without Uint8Array breaks $mol_compare_deep
         const buffer = Buffer.from(base64Str, 'base64');
         return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
@@ -11908,6 +12522,7 @@ var $;
                 this.setUint16(offset + 4, (value / 2 ** 32) | 0, LE);
             }
         }
+        /** 1-byte signed integer channel for offset. */
         int8(offset, next) {
             if (next === undefined)
                 return this.getInt8(offset);
@@ -11915,6 +12530,7 @@ var $;
                 return this.setInt8(offset, next), next;
             $mol_fail(new Error(`Wrong int8 value ${next}`));
         }
+        /** 1-byte unsigned integer channel for offset. */
         uint8(offset, next) {
             if (next === undefined)
                 return this.getUint8(offset);
@@ -11922,6 +12538,7 @@ var $;
                 return this.setUint8(offset, next), next;
             $mol_fail(new Error(`Wrong uint8 value ${next}`));
         }
+        /** 2-byte signed integer little-endian channel for offset. */
         int16(offset, next) {
             if (next === undefined)
                 return this.getInt16(offset, true);
@@ -11929,6 +12546,7 @@ var $;
                 return this.setInt16(offset, next, true), next;
             $mol_fail(new Error(`Wrong int16 value ${next}`));
         }
+        /** 2-byte unsigned integer little-endian channel for offset. */
         uint16(offset, next) {
             if (next === undefined)
                 return this.getUint16(offset, true);
@@ -11936,6 +12554,7 @@ var $;
                 return this.setUint16(offset, next, true), next;
             $mol_fail(new Error(`Wrong uint16 value ${next}`));
         }
+        /** 4-byte signed integer little-endian channel for offset. */
         int32(offset, next) {
             if (next === undefined)
                 return this.getInt32(offset, true);
@@ -11943,6 +12562,7 @@ var $;
                 return this.setInt32(offset, next, true), next;
             $mol_fail(new Error(`Wrong int32 value ${next}`));
         }
+        /** 4-byte unsigned integer little-endian channel for offset. */
         uint32(offset, next) {
             if (next === undefined)
                 return this.getUint32(offset, true);
@@ -11950,6 +12570,7 @@ var $;
                 return this.setUint32(offset, next, true), next;
             $mol_fail(new Error(`Wrong uint32 value ${next}`));
         }
+        /** 8-byte signed integer little-endian channel for offset. */
         int64(offset, next) {
             if (next === undefined)
                 return this.getBigInt64(offset, true);
@@ -11957,6 +12578,7 @@ var $;
                 return this.setBigInt64(offset, next, true), next;
             $mol_fail(new Error(`Wrong int64 value ${next}`));
         }
+        /** 6-byte unsigned integer little-endian channel for offset. */
         uint48(offset, next) {
             if (next === undefined)
                 return this.getUint48(offset, true);
@@ -11964,6 +12586,7 @@ var $;
                 return this.setUint48(offset, next, true), next;
             $mol_fail(new Error(`Wrong uint48 value ${next}`));
         }
+        /** 8-byte unsigned integer little-endian channel for offset. */
         uint64(offset, next) {
             if (next === undefined)
                 return this.getBigUint64(offset, true);
@@ -11971,24 +12594,29 @@ var $;
                 return this.setBigUint64(offset, next, true), next;
             $mol_fail(new Error(`Wrong uint64 value ${next}`));
         }
+        /** 2-byte float little-endian channel for offset. */
         float16(offset, next) {
             if (next !== undefined)
                 this.setFloat16(offset, next, true);
             return this.getFloat16(offset, true);
         }
+        /** 4-byte float little-endian channel for offset. */
         float32(offset, next) {
             if (next !== undefined)
                 this.setFloat32(offset, next, true);
             return this.getFloat32(offset, true);
         }
+        /** 8-byte float little-endian channel for offset. */
         float64(offset, next) {
             if (next !== undefined)
                 this.setFloat64(offset, next, true);
             return this.getFloat64(offset, true);
         }
+        /** A Uint8Array view for the same buffer. */
         asArray() {
             return new Uint8Array(this.buffer, this.byteOffset, this.byteLength);
         }
+        /** base64ae string from buffer. */
         toString() {
             return $mol_base64_ae_encode(this.asArray());
         }
@@ -12007,6 +12635,7 @@ var $;
                 return val;
             $mol_fail(new Error(`Wrong ref (${val.description})`));
         } }).$hyoo_crus_ref;
+    /** returns string if it's valid ref or return empty string */
     function $hyoo_crus_ref_check(val) {
         try {
             $.$hyoo_crus_ref(val);
@@ -12017,26 +12646,32 @@ var $;
         }
     }
     $.$hyoo_crus_ref_check = $hyoo_crus_ref_check;
+    /** Lord ref of any ref */
     function $hyoo_crus_ref_lord(ref) {
         return $.$hyoo_crus_ref(ref.description.split('_').slice(0, 2).join('_'));
     }
     $.$hyoo_crus_ref_lord = $hyoo_crus_ref_lord;
+    /** Land ref of any ref */
     function $hyoo_crus_ref_land(ref) {
         return $.$hyoo_crus_ref(ref.description.split('_').slice(0, 3).join('_').replace(/_$/, ''));
     }
     $.$hyoo_crus_ref_land = $hyoo_crus_ref_land;
+    /** Peer part of Ref */
     function $hyoo_crus_ref_peer(ref) {
         return ref.description.split('_')[0] ?? '';
     }
     $.$hyoo_crus_ref_peer = $hyoo_crus_ref_peer;
+    /** Area part of Node Ref */
     function $hyoo_crus_ref_area(ref) {
         return ref.description.split('_')[2] ?? '';
     }
     $.$hyoo_crus_ref_area = $hyoo_crus_ref_area;
+    /** Head part of Node Ref */
     function $hyoo_crus_ref_head(ref) {
         return ref.description.split('_')[3] ?? '';
     }
     $.$hyoo_crus_ref_head = $hyoo_crus_ref_head;
+    /** Encode to binary (12/18/24 bytes) */
     function $hyoo_crus_ref_encode(ref) {
         return $mol_base64_ae_decode((ref.description || '_')
             .split('_')
@@ -12044,12 +12679,14 @@ var $;
             .join(''));
     }
     $.$hyoo_crus_ref_encode = $hyoo_crus_ref_encode;
+    /** Read from binary (12/18 bytes) */
     function $hyoo_crus_ref_decode(bin) {
         return $.$hyoo_crus_ref([...$mol_base64_ae_encode(bin).match(/(.{8})/g) ?? []]
             .map(numb => numb === 'AAAAAAAA' ? '' : numb)
             .join('_').replace(/_+$/, ''));
     }
     $.$hyoo_crus_ref_decode = $hyoo_crus_ref_decode;
+    /** Make Node Ref relative to base Land: `___QWERTYUI` */
     function $hyoo_crus_ref_relate(base, ref) {
         base = $hyoo_crus_ref_land(base);
         if ($hyoo_crus_ref_land(ref) !== base)
@@ -12058,6 +12695,7 @@ var $;
         return $.$hyoo_crus_ref(head ? '___' + head : '');
     }
     $.$hyoo_crus_ref_relate = $hyoo_crus_ref_relate;
+    /** Make absolute Node Ref from relative (`___QWERTYUI`) using base Land Ref. */
     function $hyoo_crus_ref_resolve(base, ref) {
         if (!ref.description)
             return $hyoo_crus_ref_land(base);
@@ -12101,6 +12739,7 @@ var $;
         $.$mol_base64_url_encode = $mol_base64_url_encode_node;
     }
     function $mol_base64_url_decode_node(str) {
+        // without Uint8Array breaks $mol_compare_deep
         const buffer = Buffer.from(str, 'base64url');
         return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
@@ -12121,6 +12760,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Derived debuggable error with stack */
     function $mol_crypto_restack(error) {
         error = new Error(error instanceof Error ? error.message : String(error), { cause: error });
         $mol_fail_hidden(error);
@@ -12261,6 +12901,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** 16 unique bytes. */
     function $mol_crypto2_nonce() {
         return $mol_crypto_native.getRandomValues(new Uint8Array(16));
     }
@@ -12271,6 +12912,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** @deprecated Use $mol_crypto2_nonce */
     $.$mol_crypto_salt = $mol_crypto2_nonce;
 })($ || ($ = {}));
 
@@ -12278,11 +12920,15 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Symmetric cipher with shortest payload. */
     class $mol_crypto_sacred extends $mol_buffer {
+        /** Key size in bytes. */
         static size = 16;
+        /** Makes new random secret. */
         static make() {
             return this.from($mol_crypto_salt());
         }
+        /** Makes from string of buffer view. */
         static from(serial) {
             if (typeof serial === 'string') {
                 serial = new Uint8Array([
@@ -12312,12 +12958,14 @@ var $;
             return $mol_base64_url_encode(this.asArray());
         }
         _native;
+        /** Native crypto secret */
         async native() {
             return this._native ?? (this._native = await $mol_crypto_native.subtle.importKey('raw', this, {
                 name: 'AES-CBC',
                 length: 128,
             }, true, ['encrypt', 'decrypt']).catch($mol_crypto_restack));
         }
+        /** Encrypt any binary message. 16n bytes */
         async encrypt(open, salt) {
             return new Uint8Array(await $mol_crypto_native.subtle.encrypt({
                 name: 'AES-CBC',
@@ -12326,6 +12974,7 @@ var $;
                 iv: salt,
             }, await this.native(), open).catch($mol_crypto_restack));
         }
+        /** Decrypt any binary message. */
         async decrypt(closed, salt) {
             return new Uint8Array(await $mol_crypto_native.subtle.decrypt({
                 name: 'AES-CBC',
@@ -12334,12 +12983,14 @@ var $;
                 iv: salt,
             }, await this.native(), closed).catch($mol_crypto_restack));
         }
+        /** Encrypts 0xFF prefixed buffer. 16 bytes */
         async close(opened, salt) {
             if (opened.getUint8(0) !== 0xFF)
                 throw new Error('Closable buffer should starts with 0xFF');
             const trimed = new Uint8Array(opened.buffer, opened.byteOffset + 1, opened.byteLength - 1);
             return this.encrypt(trimed, salt);
         }
+        /** Decrypts 0xFF prefixed buffer. 16 bytes */
         async open(closed, salt) {
             const trimed = await this.decrypt(closed, salt);
             if (trimed.byteLength !== closed.byteLength - 1)
@@ -12365,8 +13016,13 @@ var $;
         length: 128,
         tagLength: 32,
     };
+    /**
+     * Symmetric cipher with shortest payload.
+     * @deprecated Use $mol_crypto_sacred.
+     */
     class $mol_crypto_secret extends Object {
         native;
+        /** Key size in bytes. */
         static size = 16;
         constructor(native) {
             super();
@@ -12408,9 +13064,11 @@ var $;
             }, private_key, algorithm, true, ["encrypt", "decrypt"]);
             return new this(secret);
         }
+        /** 16 bytes */
         async serial() {
             return new Uint8Array(await $mol_crypto_native.subtle.exportKey('raw', this.native));
         }
+        /** 16n bytes */
         async encrypt(open, salt) {
             return new Uint8Array(await $mol_crypto_native.subtle.encrypt({
                 ...algorithm,
@@ -12431,7 +13089,9 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Private key generated with Proof of Work */
     class $hyoo_crus_auth extends $mol_crypto_key_private {
+        /** Current Private key generated with Proof of Work  */
         static current(next) {
             $mol_wire_solid();
             if (next === undefined) {
@@ -12459,9 +13119,11 @@ var $;
             }
             $mol_fail(new Error(`Too long key generation`));
         }
+        /** Independent actor with global unique id generated from Auth key */
         lord() {
             return $hyoo_crus_ref_decode(new Uint8Array(this.buffer, 2, 12));
         }
+        /** Land local unique identifier of independent actor (first half of Lord) */
         peer() {
             return $mol_base64_ae_encode(new Uint8Array(this.buffer, 2, 6));
         }
@@ -12526,6 +13188,12 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time duration representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
     class $mol_time_duration extends $mol_time_base {
         constructor(config = 0) {
             super();
@@ -12726,6 +13394,7 @@ var $;
             '.sss': (moment) => {
                 if (moment.second == null)
                     return '';
+                // if( moment.second === ( moment.second | 0 ) ) return ''
                 return '.' + $mol_time_moment.patterns['sss'](moment);
             },
             'sss': (moment) => {
@@ -12759,6 +13428,12 @@ var $;
             return numb;
         $mol_fail(new Error(`Wrong time component ${str}`));
     }
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time moment representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
     class $mol_time_moment extends $mol_time_base {
         constructor(config = new Date) {
             super();
@@ -12923,6 +13598,12 @@ var $;
         [$mol_dev_format_head]() {
             return $mol_dev_format_span({}, $mol_dev_format_native(this), ' ', $mol_dev_format_accent(this.toString('YYYY-MM-DD hh:mm:ss.sss Z')));
         }
+        /// Mnemonics:
+        ///  * single letter for numbers: M - month number, D - day of month.
+        ///  * uppercase letters for dates, lowercase for times: M - month number , m - minutes number
+        ///  * repeated letters for define register count: YYYY - full year, YY - shot year, MM - padded month number
+        ///  * words for word representation: Month - month name, WeekDay - day of week name
+        ///  * shortcuts: WD - short day of week, Mon - short month name.
         static patterns = {
             'YYYY': (moment) => {
                 if (moment.year == null)
@@ -13148,25 +13829,30 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Moment from time. */
     function $hyoo_crus_time_moment(time) {
         const stamp = Math.floor(time / 65536) * 1000;
         return new $mol_time_moment(stamp);
     }
     $.$hyoo_crus_time_moment = $hyoo_crus_time_moment;
+    /** Tick from time. */
     function $hyoo_crus_time_tick(time) {
         return time % 65536;
     }
     $.$hyoo_crus_time_tick = $hyoo_crus_time_tick;
+    /** User readable time+tick view. */
     function $hyoo_crus_time_dump(time) {
         return $hyoo_crus_time_moment(time).toString('YYYY-MM-DD hh:mm:ss')
             + ' @' + $hyoo_crus_time_tick(time);
     }
     $.$hyoo_crus_time_dump = $hyoo_crus_time_dump;
+    /** Current time with 0 tick. */
     function $hyoo_crus_time_now() {
         return now || Math.floor(Date.now() / 1000) * 65536;
     }
     $.$hyoo_crus_time_now = $hyoo_crus_time_now;
     let now = 0;
+    /** Run atomic transaction by temp freezing time. */
     function $hyoo_crus_time_freeze(task) {
         if (now)
             return task();
@@ -13185,20 +13871,25 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Statistics about Units in Land. it's total Units count & dictionary which maps Peer to Time */
     class $hyoo_crus_face_map extends Map {
+        /** Maximum time for all peers. */
         last_time = 0;
+        /** Total units count in Land. */
         total = 0;
         constructor(entries) {
             super();
             if (entries)
                 this.sync(entries);
         }
+        /** Synchronize this clock with another. */
         sync(right) {
             if (right instanceof $hyoo_crus_face_map)
                 this.total = right.total;
             for (const [peer, time] of right)
                 this.time_max(peer, time);
         }
+        /** Update last time for peer. */
         time_max(peer, time) {
             if (this.last_time < time)
                 this.last_time = time;
@@ -13206,9 +13897,11 @@ var $;
             if (prev < time)
                 this.set(peer, time);
         }
+        /** Generates new time for peer that greater then other seen. */
         tick() {
             return this.last_time = Math.max(this.last_time + 1, $hyoo_crus_time_now());
         }
+        /** Last change moment */
         last_moment() {
             return $hyoo_crus_time_moment(this.last_time);
         }
@@ -13226,8 +13919,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** reactive Dictionary */
     class $mol_wire_dict extends Map {
         pub = new $mol_wire_pub;
+        // Accessors
         has(key) {
             this.pub.promote();
             return super.has(key);
@@ -13260,11 +13955,12 @@ var $;
             this.pub.promote();
             return super.size;
         }
+        // Mutators
         set(key, value) {
             if (super.get(key) === value)
                 return this;
             super.set(key, value);
-            this.pub?.emit();
+            this.pub?.emit(); // undefined in constructor
             return this;
         }
         delete(key) {
@@ -13279,6 +13975,7 @@ var $;
             super.clear();
             this.pub.emit();
         }
+        // Extensions
         item(key, next) {
             if (next === undefined)
                 return this.get(key) ?? null;
@@ -13296,6 +13993,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Registry of nodes as domain entities. */
     class $hyoo_crus_fund extends $mol_object {
         item_make;
         constructor(item_make) {
@@ -13316,18 +14014,33 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * # Generic Graph model
+     * - Supports any type of Nodes and Edges.
+     * - All links are ordered, but this may be ignored.
+     * - Multigraph supported using arrays of Edges.
+     * - Hypergraph supported by reusing same Edge on set of links.
+     * - Ubergraph supported using Edges as Nodes to.
+     **/
     class $mol_graph {
+        /** All registered Nodes */
         nodes = new Set();
+        /** Edges for Nodes pairs (from-to-edge) */
         edges_out = new Map();
+        /** Edges for Nodes pairs (to-from-edge) */
         edges_in = new Map();
+        // LINKING NODES
+        /** Full connect two Nodes */
         link(from, to, edge) {
             this.link_out(from, to, edge);
             this.link_in(to, from, edge);
         }
+        /** Full disconnect two Nodes */
         unlink(from, to) {
             this.edges_in.get(to)?.delete(from);
             this.edges_out.get(from)?.delete(to);
         }
+        /** Forward connect two Nodes */
         link_out(from, to, edge) {
             let pair = this.edges_out.get(from);
             if (!pair) {
@@ -13338,6 +14051,7 @@ var $;
             pair.set(to, edge);
             this.nodes.add(to);
         }
+        /** Backward connect two Nodes */
         link_in(to, from, edge) {
             let pair = this.edges_in.get(to);
             if (!pair) {
@@ -13348,15 +14062,21 @@ var $;
             pair.set(from, edge);
             this.nodes.add(to);
         }
+        // GETTING EDGES
+        /** Return any Edge for two Nodes or null */
         edge(from, to) {
             return this.edge_out(from, to) ?? this.edge_in(to, from);
         }
+        /** Return output Edge for two Nodes or null */
         edge_out(from, to) {
             return this.edges_out.get(from)?.get(to) ?? null;
         }
+        /** Return input Edge for two Nodes or null */
         edge_in(to, from) {
             return this.edges_in.get(to)?.get(from) ?? null;
         }
+        // MUTATIONS
+        /** Cut cycles at lowest priority of Edges */
         acyclic(get_weight) {
             const checked = [];
             for (const start of this.nodes) {
@@ -13401,6 +14121,8 @@ var $;
                 visit(start);
             }
         }
+        // NODES SELECTION
+        /** Topoligical ordered set of all Nodes for acyclic graph */
         get sorted() {
             const sorted = new Set();
             const visit = (node) => {
@@ -13418,6 +14140,7 @@ var $;
             }
             return sorted;
         }
+        /** All Nodes which don't have input Edges */
         get roots() {
             const roots = [];
             for (const node of this.nodes) {
@@ -13427,6 +14150,13 @@ var $;
             }
             return roots;
         }
+        // DEPTH STATS
+        /**
+         * Nodes depth statistics for acyclic graph
+         * @example
+         * graph.depth_stat( Math.min )
+         * graph.depth_stat( Math.max )
+         **/
         nodes_depth(select) {
             const stat = new Map();
             const visit = (node, depth = 0) => {
@@ -13441,6 +14171,12 @@ var $;
                 visit(root);
             return stat;
         }
+        /**
+         * Depth's Nodes statistics for acyclic graph
+         * @example
+         * graph.depth_nodes( Math.min )
+         * graph.depth_nodes( Math.max )
+         **/
         depth_nodes(select) {
             const groups = [];
             for (const [node, depth] of this.nodes_depth(select).entries()) {
@@ -13460,6 +14196,7 @@ var $;
 var $;
 (function ($) {
     let sponge = new Uint32Array(80);
+    /** Fast small sync SHA-1 (20 bytes, 160 bits) */
     function $mol_crypto2_hash(input) {
         const data = input instanceof Uint8Array
             ? input
@@ -13474,7 +14211,9 @@ var $;
         for (let i = wlen; i < data.length; ++i) {
             tail |= data[i] << ((3 - i & 0b11) << 3);
         }
+        // Initial
         const hash = new Int32Array([1732584193, -271733879, -1732584194, 271733878, -1009589776]);
+        // Digest
         for (let i = 0; i < bytes; i += 16) {
             let h0 = hash[0];
             let h1 = hash[1];
@@ -13550,7 +14289,7 @@ var $;
         }
         for (let i = 0; i < 20; ++i) {
             const word = hash[i];
-            hash[i] = word << 24 | word << 8 & 0xFF0000 | word >>> 8 & 0xFF00 | word >>> 24 & 0xFF;
+            hash[i] = word << 24 | word << 8 & 0xFF0000 | word >>> 8 & 0xFF00 | word >>> 24 & 0xFF; // BE -> LE
         }
         return new Uint8Array(hash.buffer);
     }
@@ -13561,6 +14300,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** @deprecated Use $mol_crypto2_hash */
     $.$mol_crypto_hash = $mol_crypto2_hash;
 })($ || ($ = {}));
 
@@ -13568,6 +14308,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Universal binary package which contains some Faces/Units/Rocks */
     class $hyoo_crus_pack extends $mol_buffer {
         toBlob() {
             return new Blob([this], { type: 'application/vnd.hyoo_crus_pack' });
@@ -13663,7 +14404,9 @@ var $;
             let size = 0;
             for (const land of Reflect.ownKeys(lands)) {
                 size += 24;
+                // if( lands[ land ].faces.size ) {
                 size += Math.ceil(lands[land].faces.size * 12 / 8 + .5) * 8;
+                // }
                 size += lands[land].units.length * $hyoo_crus_unit.size;
             }
             for (const [hash, rock] of rocks) {
@@ -13679,6 +14422,7 @@ var $;
                 pack.uint32(offset, $hyoo_crus_part.land | (faces.total << 8));
                 buff.set($hyoo_crus_ref_encode(land), offset + 4);
                 offset += 24;
+                // if( !faces.size ) continue
                 pack.uint32(offset, $hyoo_crus_part.face | (faces.size << 8));
                 offset += 4;
                 for (const [peer, time] of faces) {
@@ -13711,6 +14455,12 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time interval representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
     class $mol_time_interval extends $mol_time_base {
         constructor(config) {
             super();
@@ -13824,23 +14574,40 @@ var $;
         dom: $mol_dom_context.Element,
         tree: $mol_tree2,
     };
+    /** Hint how to interpret Data. */
     let $hyoo_crus_vary_tip;
     (function ($hyoo_crus_vary_tip) {
+        /** 0. No Data */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["nil"] = 1] = "nil";
+        /** 0. Binary */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bin"] = 2] = "bin";
+        /** 1b * 32 * 8. Boolean */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bool"] = 3] = "bool";
+        /** 8B. int64 */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["int"] = 4] = "int";
+        /** 8B. float64 */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["real"] = 5] = "real";
+        /** 8B * n<=4. int64 */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["ints"] = 6] = "ints";
+        /** 8B * n<=4. float64 */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["reals"] = 7] = "reals";
+        /** 12B. Reference to Node/Land/Lord. */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["ref"] = 8] = "ref";
+        /** String */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["str"] = 16] = "str";
+        /** iso8601 moment*/
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["time"] = 17] = "time";
+        /** iso8601 duration */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["dur"] = 18] = "dur";
+        /** iso8601 interval */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["range"] = 19] = "range";
+        /** Plain Old JS Object. */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["json"] = 20] = "json";
+        /** Plain Old JS Array. */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["jsan"] = 21] = "jsan";
+        /** Document Object Model (xml, xhtml etc). */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["dom"] = 22] = "dom";
+        /** Abstract Syntax Tree. */
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["tree"] = 23] = "tree";
     })($hyoo_crus_vary_tip = $.$hyoo_crus_vary_tip || ($.$hyoo_crus_vary_tip = {}));
     function $hyoo_crus_vary_switch(vary, ways) {
@@ -13997,6 +14764,7 @@ var $;
 
 ;
 "use strict";
+/** @jsx $mol_jsx */
 var $;
 (function ($) {
     function $hyoo_crus_vary_cast_bin(vary) {
@@ -14033,7 +14801,7 @@ var $;
             real: vary => Number.isFinite(vary) ? BigInt(Math.trunc(vary)) : null,
             ints: vary => BigInt(vary.length),
             reals: vary => BigInt(vary.length),
-            ref: vary => null,
+            ref: vary => null, //$mol_base64_ae_decode( vary.description!.slice( 0, 16 ) ) + ( BigInt( vary.land() ) << 64n ) + ( BigInt( vary.head() ) << 96n ),
             str: vary => {
                 try {
                     return vary ? BigInt(vary) : null;
@@ -14489,6 +15257,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Starts subtasks concurrently instead of serial. */
     function $mol_wire_race(...tasks) {
         const results = tasks.map(task => {
             try {
@@ -14518,10 +15287,13 @@ var $;
         $hyoo_crus_land_root["data"] = "";
         $hyoo_crus_land_root["tine"] = "AQAAAAAA";
     })($hyoo_crus_land_root = $.$hyoo_crus_land_root || ($.$hyoo_crus_land_root = {}));
+    /** Standalone part of Glob which syncs separately, have own rights, and contains Units */
     class $hyoo_crus_land extends $mol_object {
+        /** Auth Independent actor with global unique id generated from Auth key */
         ref() {
             return this.auth().lord();
         }
+        /** Auth Private key generated with Proof of Work  */
         auth() {
             return this.$.$hyoo_crus_auth.current();
         }
@@ -14547,6 +15319,7 @@ var $;
             }
             $mol_fail(new Error(`Too long self generation`));
         }
+        /** Land where Lord is King. Contains only ain info */
         home() {
             return this.Data($hyoo_crus_home);
         }
@@ -14573,12 +15346,15 @@ var $;
             area.sync_yard();
             return area;
         }
+        /** Data root */
         Data(Node) {
             return this.Node(Node).Item($hyoo_crus_land_root.data);
         }
+        /** Lands for inheritance */
         Tine() {
             return this.Node($hyoo_crus_list_ref).Item($hyoo_crus_land_root.tine);
         }
+        /** High level representation of stored data */
         Node(Node) {
             return new $hyoo_crus_fund((head) => {
                 if (head === 'AAAAAAAA')
@@ -14589,6 +15365,7 @@ var $;
                 });
             });
         }
+        /** Total count of Units inside Land. */
         total() {
             let total = this.pass.size + this.gift.size;
             for (const peers of this.sand.values()) {
@@ -14598,15 +15375,18 @@ var $;
             }
             return total;
         }
+        /** All joined Lords. */
         joined_list() {
             return [...this.pass.values()].map(unit => unit.lord());
         }
+        /** Public key of Land Lord. */
         key() {
             const pass = this.pass.get($hyoo_crus_ref_peer(this.ref()));
             if (!pass)
                 return null;
             return $hyoo_crus_auth.from(pass.auth());
         }
+        /** Rights level of Lord for Land. */
         lord_rank(lord, next) {
             if (lord === $hyoo_crus_ref_lord(this.ref()))
                 return $hyoo_crus_rank_rule;
@@ -14620,6 +15400,7 @@ var $;
             this.give(lord, next);
             return next;
         }
+        /** Rights level of Peer for Land. */
         peer_rank(peer) {
             const auth = this.pass.get(peer);
             if (auth)
@@ -14651,6 +15432,7 @@ var $;
             graph.acyclic(() => 1);
             return [...graph.sorted].map(key => dict.get(key)).filter(Boolean);
         }
+        /** Picks units between Face and current state. */
         delta_unit(face = new $hyoo_crus_face_map) {
             this.loading();
             const delta = [];
@@ -14702,6 +15484,7 @@ var $;
             });
             return this.delta_unit();
         }
+        /** Makes binary Delta between Face and current state. */
         delta_pack(face = new $hyoo_crus_face_map) {
             const parts = this.delta_parts(face);
             if (!parts)
@@ -14742,6 +15525,7 @@ var $;
             });
             return pack;
         }
+        /** Applies Delta to current state with verify. */
         apply_unit(delta, skip_check) {
             if (!delta.length)
                 return [];
@@ -14786,6 +15570,7 @@ var $;
                 return `Wrong unit sign`;
             }));
         }
+        /** Applies Delta to current state without verifying. */
         apply_unit_trust(delta, skip_check) {
             return delta.map(unit => {
                 let need_recheck = false;
@@ -14879,6 +15664,7 @@ var $;
         }
         sand_ordered({ head, peer }) {
             this.sync();
+            // this.secret() // early async to prevent async on put
             const queue = peer
                 ? [...this.sand.get(head)?.get(peer)?.values() ?? []]
                 : [...this.sand.get(head)?.values() ?? []].flatMap(units => [...units.values()]);
@@ -14969,6 +15755,7 @@ var $;
             }
             return res;
         }
+        /** Register public key **/
         join() {
             const auth = this.auth();
             const prev = this.pass.get(auth.peer());
@@ -14984,6 +15771,10 @@ var $;
             this.broadcast();
             return next;
         }
+        /**
+         * Gives access rights to Lord by Auth key.
+         * `null` - gives rights for all Peers.
+         */
         give(dest, rank) {
             this.join();
             const auth = this.auth();
@@ -14999,6 +15790,10 @@ var $;
                 if (secret_land) {
                     if (!dest)
                         $mol_fail(new Error(`Encrypted land can't be shared to everyone`));
+                    // const prev = this.gift.get( dest instanceof $hyoo_crus_auth ? dest.lord() : dest )
+                    // if( prev && prev.rank() >= $hyoo_crus_rank_read ) {
+                    // 	unit.bill().set( prev.bill() ) // need reencrypt with new salt
+                    // } else {
                     if (typeof dest === 'symbol') {
                         $mol_fail(new Error(`No pub key for lord (${dest.description})`));
                     }
@@ -15008,6 +15803,7 @@ var $;
                         const bill = $mol_wire_sync(secret_mutual).encrypt(secret_bin, unit.salt());
                         unit.bill().set(bill);
                     }
+                    // }
                 }
             }
             const error = this.apply_unit([unit])[0];
@@ -15016,6 +15812,7 @@ var $;
             this.broadcast();
             return unit;
         }
+        /** Places data to tree. */
         post(lead, head, self, vary, tag = 'term') {
             if (typeof vary === 'symbol')
                 vary = $hyoo_crus_ref_relate(this.ref(), vary);
@@ -15109,6 +15906,7 @@ var $;
             }));
         }
         loading() {
+            // $mol_wire_solid()
             let units = this.unit_sort(this.$.$hyoo_crus_mine.units(this.ref()) ?? []);
             if (this.$.$hyoo_crus_log())
                 $mol_wire_sync(this.$).$mol_log3_rise({
@@ -15262,6 +16060,7 @@ var $;
             return !this.sand.size;
         }
         encrypted(next) {
+            // $mol_wire_solid()
             const gift = this.gift.get(this.ref());
             const prev = gift?.bill().some(b => b) ?? false;
             if (next === undefined)
@@ -15581,8 +16380,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Reactive Set */
     class $mol_wire_set extends Set {
         pub = new $mol_wire_pub;
+        // Accessors
         has(value) {
             this.pub.promote();
             return super.has(value);
@@ -15611,6 +16412,7 @@ var $;
             this.pub.promote();
             return super.size;
         }
+        // Mutators
         add(value) {
             if (super.has(value))
                 return this;
@@ -15630,6 +16432,7 @@ var $;
             super.clear();
             this.pub.emit();
         }
+        // Extensions
         item(val, next) {
             if (next === undefined)
                 return this.has(val);
@@ -15665,6 +16468,11 @@ var $;
         $mol_websocket_frame_op[$mol_websocket_frame_op["ping"] = 9] = "ping";
         $mol_websocket_frame_op[$mol_websocket_frame_op["pong"] = 10] = "pong";
     })($mol_websocket_frame_op = $.$mol_websocket_frame_op || ($.$mol_websocket_frame_op = {}));
+    /**
+     * WebSocket frame header.
+     * https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+     * Payload >= 2^32 isn't supported
+     */
     class $mol_websocket_frame extends $mol_buffer {
         kind(next) {
             if (next) {
@@ -15808,7 +16616,9 @@ var $;
 var $;
 (function ($) {
     const Passives = new WeakMap();
+    /** Glob synchronizer */
     class $hyoo_crus_yard extends $mol_object {
+        /** Whole global graph database which contains Lands */
         glob() {
             return null;
         }
@@ -16040,6 +16850,7 @@ var $;
             }
         }
         init_port_land([port, land]) {
+            // $mol_wire_solid() 
             const Land = this.$.$hyoo_crus_glob.Land(land);
             Land.loading();
             if (this.$.$hyoo_crus_log())
@@ -16124,13 +16935,18 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Kind of Unit */
     let $hyoo_crus_unit_kind;
     (function ($hyoo_crus_unit_kind) {
+        /** Public key. First writes wins. */
         $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["pass"] = $hyoo_crus_part.pass] = "pass";
+        /** Rights sharing. More power wins. */
         $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["gift"] = $hyoo_crus_part.gift] = "gift";
+        /** Changeable data. Last writes wins. */
         $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["sand"] = $hyoo_crus_part.sand] = "sand";
     })($hyoo_crus_unit_kind = $.$hyoo_crus_unit_kind || ($.$hyoo_crus_unit_kind = {}));
     $.$hyoo_crus_unit_trusted = new WeakSet();
+    /** Minimal independent stable part of information. Actually it's edge between nodes in graph model */
     class $hyoo_crus_unit extends $mol_buffer {
         static size = 128;
         constructor(buffer = new ArrayBuffer($hyoo_crus_unit.size), byteOffset = 0, byteLength = buffer.byteLength) {
@@ -16246,6 +17062,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Public key of Peer */
     class $hyoo_crus_pass extends $hyoo_crus_unit {
         _lord;
         lord(next) {
@@ -16283,6 +17100,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Given Rank and Secret */
     class $hyoo_crus_gift extends $hyoo_crus_unit {
         rank(next) {
             if (next !== undefined)
@@ -16343,29 +17161,35 @@ var $;
         static unit_updates = 0;
         static unit_appends = 0;
         static rock_writes = 0;
+        /** SHA-1 hash of BLOB */
         static hash(blob) {
             return $mol_crypto_hash(blob);
         }
+        /**  BLOB identified by Hash */
         static rock(hash, next) {
             $mol_wire_solid();
             return next ?? null;
         }
+        /** Saves BLOB to storage and returns it's Hash */
         static rock_save(blob) {
             const hash = this.hash(blob);
             this.rock(hash, blob);
-            this.rock(hash);
+            this.rock(hash); // temp dep allow reap
             return hash;
         }
         static units_persisted = new WeakSet();
+        /** Sync loads/saves units. */
         static units(land, next) {
             if (next)
                 return $mol_wire_sync(this).units_save(land, next), next;
             else
                 return $mol_wire_sync(this).units_load(land);
         }
+        /** Loads units from storage */
         static async units_load(land) {
             return [];
         }
+        /** Saves units to storage */
         static async units_save(land, units) {
         }
     }
@@ -16459,6 +17283,7 @@ var $;
                     message: error?.message,
                 });
             });
+            // await db.connect()
             await db.query(`
 				CREATE TABLE IF NOT EXISTS Land (
 					land varchar(17) NOT NULL,
@@ -16631,13 +17456,19 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Hint how interpret inner Units: term, solo, vals, keys */
     let $hyoo_crus_sand_tag;
     (function ($hyoo_crus_sand_tag) {
+        /** Itself value. Ignore */
         $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["term"] = 0] = "term";
+        /** Value in first sub node. Ignore all after first */
         $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["solo"] = 1] = "solo";
+        /** List of values */
         $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["vals"] = 2] = "vals";
+        /** List of keys */
         $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["keys"] = 3] = "keys";
     })($hyoo_crus_sand_tag = $.$hyoo_crus_sand_tag || ($.$hyoo_crus_sand_tag = {}));
+    /**  (Meta) Data */
     class $hyoo_crus_sand extends $hyoo_crus_unit {
         _vary = undefined;
         _open = null;
@@ -16649,6 +17480,7 @@ var $;
         }
         tip() {
             const tip = $hyoo_crus_vary_tip[this.uint8(0) >> 3] || 'nil';
+            // if( !tip ) $mol_fail( new Error( 'Empty tip' ) )
             return tip;
         }
         utf() {
@@ -16722,6 +17554,10 @@ var $;
             const buf = new $mol_buffer(hash.buffer);
             return buf.uint48(0);
         }
+        /**
+         * Compare Sands on timeline ( right - left )
+         * Priority: time > peer > tick
+         */
         static compare(left, right) {
             return (Math.floor(right.time() / 65536) - Math.floor(left.time() / 65536))
                 || (right.peer() > left.peer() ? 1 : right.peer() < left.peer() ? -1 : 0)
@@ -16749,7 +17585,12 @@ var $;
                 solo: '1️⃣',
                 vals: '🎹',
                 keys: '🔑',
-            }[this.tag()], this.tip(), ' ', $mol_dev_format_native(this._vary));
+            }[this.tag()], this.tip(), ' ', $mol_dev_format_native(this._vary) //??
+            // ( this.size() > 32
+            // 	? $mol_dev_format_shade( this.hash() )
+            // 	: $mol_dev_format_native( $hyoo_crus_vary_decode({ tip: this.tip(), bin: this.data() }) )
+            // ),
+            );
         }
     }
     $.$hyoo_crus_sand = $hyoo_crus_sand;
@@ -16759,26 +17600,33 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Virtual Node that represents contained units as high-level data types. */
     class $hyoo_crus_node extends $mol_object {
         static tag = 'vals';
+        /** Standalone part of Glob which syncs separately, have own rights, and contains Units */
         land() {
             return null;
         }
+        /** Land local Node id */
         head() {
             return '';
         }
+        /** Reference to Land/Lord. */
         land_ref() {
             return this.land()?.ref() ?? this.$.$hyoo_crus_auth.current().lord();
         }
+        /** Reference to Node/Land/Lord. */
         ref() {
             return $hyoo_crus_ref_resolve(this.land_ref(), $hyoo_crus_ref('___' + this.head()));
         }
         toJSON() {
             return this.ref().description;
         }
+        /** Returns another representation of this node. */
         cast(Node) {
             return this.land().Node(Node).Item(this.head());
         }
+        /** Ordered inner alive Node. */
         nodes(Node) {
             const land = this.land();
             const map = {
@@ -16789,6 +17637,7 @@ var $;
             };
             return this.units().map(unit => map[unit.tag()]().Item(unit.self()));
         }
+        /** All ordered alive Units */
         units() {
             return this.units_of('');
         }
@@ -16798,9 +17647,11 @@ var $;
         filled() {
             return this.units().length > 0;
         }
+        /** Ability to make changes by current peer. */
         can_change() {
             return this.land().lord_rank(this.land().auth().lord()) >= $hyoo_crus_rank_tier.join;
         }
+        /** Time of last changed unit inside Node subtree */
         last_change() {
             const land = this.land();
             let last = 0;
@@ -16814,6 +17665,7 @@ var $;
             this.units().forEach(visit);
             return last ? $hyoo_crus_time_moment(last) : null;
         }
+        /** All author Peers of Node subtree */
         author_peers() {
             const land = this.land();
             const peers = new Set();
@@ -16826,6 +17678,7 @@ var $;
             this.units_of(null).forEach(visit);
             return [...peers];
         }
+        /** All author Lords of Node subtree */
         author_lords() {
             const land = this.land();
             return this.author_peers()
@@ -16871,9 +17724,9 @@ var $;
         if (!replace)
             replace = (next, prev, lead) => insert(next, drop(prev, lead));
         if (to > prev.length)
-            to = prev.length;
+            to = prev.length; // $mol_fail( new RangeError( `To(${ to }) greater then length(${ prev.length })` ) )
         if (from > to)
-            from = to;
+            from = to; // $mol_fail( new RangeError( `From(${ to }) greater then to(${ to })` ) )
         let p = from;
         let n = 0;
         let lead = p ? prev[p - 1] : null;
@@ -16905,8 +17758,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Reactive convergent list. */
     class $hyoo_crus_list_vary extends $hyoo_crus_node {
         static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.vals];
+        /** All Vary in the list. */
         items_vary(next, tag = 'term') {
             const units = this.units();
             if (next === undefined)
@@ -16914,6 +17769,7 @@ var $;
             this.splice(next, 0, units.length, tag);
             return this.items_vary();
         }
+        /** Replace sublist by  new one with reconciliation. */
         splice(next, from = this.units().length, to = from, tag = 'term') {
             const land = this.land();
             $mol_reconcile({
@@ -16927,6 +17783,7 @@ var $;
                 replace: (next, prev, lead) => this.land().post(lead?.self() ?? '', prev.head(), prev.self(), next, prev.tag()),
             });
         }
+        /** Unit by Vary. */
         find(vary) {
             for (const unit of this.units()) {
                 if ($mol_compare_deep(this.land().sand_decode(unit), vary))
@@ -16934,6 +17791,7 @@ var $;
             }
             return null;
         }
+        /** Existence of Vary in the list. */
         has(vary, next, tag = 'term') {
             if (next === undefined)
                 return Boolean(this.find(vary));
@@ -16943,11 +17801,13 @@ var $;
                 this.cut(vary);
             return next;
         }
+        /** Add Vary a the beginning if it doesn't exists. */
         add(vary, tag = 'term') {
             if (this.has(vary))
                 return;
             this.land().post('', this.head(), '', vary, tag);
         }
+        /** Removes all Vary presence. */
         cut(vary) {
             const units = [...this.units()];
             for (let i = 0; i < units.length; ++i) {
@@ -16958,12 +17818,15 @@ var $;
                 --i;
             }
         }
+        /** Moves item from one Seat to another. */
         move(from, to) {
             this.land().sand_move(this.units()[from], this.head(), to);
         }
+        /** Remove item by Seat. */
         wipe(seat) {
             this.land().sand_wipe(this.units()[seat]);
         }
+        /** Add vary at the end and use maked Self as Node Head. */
         node_make(Node, vary, tag = 'term') {
             this.splice([vary], undefined, undefined, tag);
             return this.land().Node(Node).Item(this.units().at(-1).self());
@@ -16980,6 +17843,7 @@ var $;
         $mol_action
     ], $hyoo_crus_list_vary.prototype, "splice", null);
     $.$hyoo_crus_list_vary = $hyoo_crus_list_vary;
+    /** Mergeable list of atomic vary type factory */
     function $hyoo_crus_list(parse) {
         class $hyoo_crus_list extends $hyoo_crus_list_vary {
             static parse = parse;
@@ -16996,60 +17860,77 @@ var $;
         return $hyoo_crus_list;
     }
     $.$hyoo_crus_list = $hyoo_crus_list;
+    /** Mergeable list of atomic non empty binaries */
     class $hyoo_crus_list_bin extends $hyoo_crus_list($hyoo_crus_vary_cast_bin) {
     }
     $.$hyoo_crus_list_bin = $hyoo_crus_list_bin;
+    /** Mergeable list of atomic booleans */
     class $hyoo_crus_list_bool extends $hyoo_crus_list($hyoo_crus_vary_cast_bool) {
     }
     $.$hyoo_crus_list_bool = $hyoo_crus_list_bool;
+    /** Mergeable list of atomic int64s */
     class $hyoo_crus_list_int extends $hyoo_crus_list($hyoo_crus_vary_cast_int) {
     }
     $.$hyoo_crus_list_int = $hyoo_crus_list_int;
+    /** Mergeable list of atomic float64s */
     class $hyoo_crus_list_real extends $hyoo_crus_list($hyoo_crus_vary_cast_real) {
     }
     $.$hyoo_crus_list_real = $hyoo_crus_list_real;
+    /** Mergeable list of atomic int64 arrays */
     class $hyoo_crus_list_ints extends $hyoo_crus_list($hyoo_crus_vary_cast_ints) {
     }
     $.$hyoo_crus_list_ints = $hyoo_crus_list_ints;
+    /** Mergeable list of atomic float64 arrays */
     class $hyoo_crus_list_reals extends $hyoo_crus_list($hyoo_crus_vary_cast_reals) {
     }
     $.$hyoo_crus_list_reals = $hyoo_crus_list_reals;
+    /** Mergeable list of atomic some references */
     class $hyoo_crus_list_ref extends $hyoo_crus_list($hyoo_crus_vary_cast_ref) {
     }
     $.$hyoo_crus_list_ref = $hyoo_crus_list_ref;
+    /** Mergeable list of atomic strings */
     class $hyoo_crus_list_str extends $hyoo_crus_list($hyoo_crus_vary_cast_str) {
     }
     $.$hyoo_crus_list_str = $hyoo_crus_list_str;
+    /** Mergeable list of atomic iso8601 time moments */
     class $hyoo_crus_list_time extends $hyoo_crus_list($hyoo_crus_vary_cast_time) {
     }
     $.$hyoo_crus_list_time = $hyoo_crus_list_time;
+    /** Mergeable list of atomic iso8601 time durations */
     class $hyoo_crus_list_dur extends $hyoo_crus_list($hyoo_crus_vary_cast_dur) {
     }
     $.$hyoo_crus_list_dur = $hyoo_crus_list_dur;
+    /** Mergeable list of atomic iso8601 time intervals */
     class $hyoo_crus_list_range extends $hyoo_crus_list($hyoo_crus_vary_cast_range) {
     }
     $.$hyoo_crus_list_range = $hyoo_crus_list_range;
+    /** Mergeable list of atomic plain old js objects */
     class $hyoo_crus_list_json extends $hyoo_crus_list($hyoo_crus_vary_cast_json) {
     }
     $.$hyoo_crus_list_json = $hyoo_crus_list_json;
+    /** Mergeable list of atomic plain old js arrays */
     class $hyoo_crus_list_jsan extends $hyoo_crus_list($hyoo_crus_vary_cast_jsan) {
     }
     $.$hyoo_crus_list_jsan = $hyoo_crus_list_jsan;
+    /** Mergeable list of atomic DOMs */
     class $hyoo_crus_list_dom extends $hyoo_crus_list($hyoo_crus_vary_cast_dom) {
     }
     $.$hyoo_crus_list_dom = $hyoo_crus_list_dom;
+    /** Mergeable list of atomic Trees*/
     class $hyoo_crus_list_tree extends $hyoo_crus_list($hyoo_crus_vary_cast_tree) {
     }
     $.$hyoo_crus_list_tree = $hyoo_crus_list_tree;
     class $hyoo_crus_list_ref_base extends $hyoo_crus_list_ref {
     }
     $.$hyoo_crus_list_ref_base = $hyoo_crus_list_ref_base;
+    /** mergeable list of atomic references to some Node type */
     function $hyoo_crus_list_ref_to(Value) {
         class $hyoo_crus_list_ref_to extends $hyoo_crus_list_ref_base {
             static Value = $mol_memo.func(Value);
             static toString() {
                 return this === $hyoo_crus_list_ref_to ? '$hyoo_crus_list_ref_to<' + Value() + '>' : super.toString();
             }
+            /** List of referenced Nodes */
             remote_list(next) {
                 const glob = this.$.$hyoo_crus_glob;
                 const Node = Value();
@@ -17061,6 +17942,7 @@ var $;
             remote_add(item) {
                 this.add(item.ref());
             }
+            /** Make new Node and place it at end. */
             make(config) {
                 if (config === null || typeof config === 'number') {
                     const self = this.land().self_make(config || undefined);
@@ -17079,9 +17961,13 @@ var $;
                     return land.Node(Value()).Item('');
                 }
             }
+            /** Add new Node which placed in new Land */
+            /** @deprecated use make( ... ) */
             remote_make(config) {
                 return this.make(config);
             }
+            /** Add new Node which placed in same Land */
+            /** @deprecated use make( ... ) */
             local_make(idea) {
                 const self = this.land().self_make(idea);
                 const node = this.land().Node(Value()).Item(self);
@@ -17110,11 +17996,14 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Mergeable dictionary node with any keys mapped to any embedded Node types */
     class $hyoo_crus_dict extends $hyoo_crus_list_vary {
         static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.keys];
+        /** List of Vary keys. */
         keys() {
             return this.items_vary();
         }
+        /** Inner Node by key. */
         dive(key, Node, auto) {
             if (this.can_change() && auto !== undefined)
                 this.has(key, true, Node.tag);
@@ -17122,8 +18011,10 @@ var $;
             return unit ? this.land().Node(Node).Item(unit.self()) : null;
         }
         static schema = {};
+        /** Mergeable dictionary node with defined keys mapped to different embedded Node types */
         static with(schema) {
             const $hyoo_crus_dict_with = class $hyoo_crus_dict_with extends this {
+                // static get schema() { return { ... this.schema, ... schema } }
                 static toString() {
                     if (this !== $hyoo_crus_dict_with)
                         return super.toString();
@@ -17137,6 +18028,7 @@ var $;
                         return this.dive(Field, schema[Field], auto);
                     }
                 });
+                // $mol_wire_field( Entity.prototype, Field as any )
             }
             return Object.assign($hyoo_crus_dict_with, { schema: { ...this.schema, ...schema } });
         }
@@ -17163,6 +18055,7 @@ var $;
             return $mol_dev_format_tr({}, $mol_dev_format_td({}, $mol_dev_format_auto(this.key)), $mol_dev_format_td({}, ': '), $mol_dev_format_td({}, $mol_dev_format_auto(this.val)));
         }
     }
+    /** Mergeable dictionary with any keys mapped to any embedded Node types */
     function $hyoo_crus_dict_to(Value) {
         return class $hyoo_crus_dict_to extends $hyoo_crus_dict {
             Value = Value;
@@ -17181,6 +18074,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * 48-bit streamable array hash function
+     * Based on cyrb53: https://stackoverflow.com/a/52171480
+     */
     function $mol_hash_numbers(buff, seed = 0) {
         let h1 = 0xdeadbeef ^ seed;
         let h2 = 0x41c6ce57 ^ seed;
@@ -17200,6 +18097,10 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /**
+     * 48-bit streamable string hash function
+     * Based on cyrb53: https://stackoverflow.com/a/52171480
+     */
     function $mol_hash_string(str, seed = 0) {
         let nums = new Array(str.length);
         for (let i = 0; i < str.length; ++i)
@@ -17213,6 +18114,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Atomic dynamic register */
     class $hyoo_crus_atom_vary extends $hyoo_crus_node {
         static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.solo];
         pick_unit(peer) {
@@ -17275,9 +18177,11 @@ var $;
         return $hyoo_crus_atom_enum;
     }
     $.$hyoo_crus_atom_enum = $hyoo_crus_atom_enum;
+    /** Atomic narrowed register factory */
     function $hyoo_crus_atom(parse) {
         class $hyoo_crus_atom extends $hyoo_crus_atom_vary {
             static parse = parse;
+            /** Get/Set value of Node field */
             val(next) {
                 return this.val_of('', next);
             }
@@ -17299,48 +18203,63 @@ var $;
         return $hyoo_crus_atom;
     }
     $.$hyoo_crus_atom = $hyoo_crus_atom;
+    /** Atomic non empty binary register */
     class $hyoo_crus_atom_bin extends $hyoo_crus_atom($hyoo_crus_vary_cast_bin) {
     }
     $.$hyoo_crus_atom_bin = $hyoo_crus_atom_bin;
+    /** Atomic boolean register */
     class $hyoo_crus_atom_bool extends $hyoo_crus_atom($hyoo_crus_vary_cast_bool) {
     }
     $.$hyoo_crus_atom_bool = $hyoo_crus_atom_bool;
+    /** Atomic int64 register */
     class $hyoo_crus_atom_int extends $hyoo_crus_atom($hyoo_crus_vary_cast_int) {
     }
     $.$hyoo_crus_atom_int = $hyoo_crus_atom_int;
+    /** Atomic float64 register */
     class $hyoo_crus_atom_real extends $hyoo_crus_atom($hyoo_crus_vary_cast_real) {
     }
     $.$hyoo_crus_atom_real = $hyoo_crus_atom_real;
+    /** Atomic int64 array register */
     class $hyoo_crus_atom_ints extends $hyoo_crus_atom($hyoo_crus_vary_cast_ints) {
     }
     $.$hyoo_crus_atom_ints = $hyoo_crus_atom_ints;
+    /** Atomic float64 array register */
     class $hyoo_crus_atom_reals extends $hyoo_crus_atom($hyoo_crus_vary_cast_reals) {
     }
     $.$hyoo_crus_atom_reals = $hyoo_crus_atom_reals;
+    /** Atomic some reference register */
     class $hyoo_crus_atom_ref extends $hyoo_crus_atom($hyoo_crus_vary_cast_ref) {
     }
     $.$hyoo_crus_atom_ref = $hyoo_crus_atom_ref;
+    /** Atomic string register */
     class $hyoo_crus_atom_str extends $hyoo_crus_atom($hyoo_crus_vary_cast_str) {
     }
     $.$hyoo_crus_atom_str = $hyoo_crus_atom_str;
+    /** Atomic iso8601 time moment register*/
     class $hyoo_crus_atom_time extends $hyoo_crus_atom($hyoo_crus_vary_cast_time) {
     }
     $.$hyoo_crus_atom_time = $hyoo_crus_atom_time;
+    /** Atomic iso8601 time duration register */
     class $hyoo_crus_atom_dur extends $hyoo_crus_atom($hyoo_crus_vary_cast_dur) {
     }
     $.$hyoo_crus_atom_dur = $hyoo_crus_atom_dur;
+    /** Atomic iso8601 time interval register */
     class $hyoo_crus_atom_range extends $hyoo_crus_atom($hyoo_crus_vary_cast_range) {
     }
     $.$hyoo_crus_atom_range = $hyoo_crus_atom_range;
+    /** Atomic plain old js object register */
     class $hyoo_crus_atom_json extends $hyoo_crus_atom($hyoo_crus_vary_cast_json) {
     }
     $.$hyoo_crus_atom_json = $hyoo_crus_atom_json;
+    /** Atomic plain old js array register */
     class $hyoo_crus_atom_jsan extends $hyoo_crus_atom($hyoo_crus_vary_cast_jsan) {
     }
     $.$hyoo_crus_atom_jsan = $hyoo_crus_atom_jsan;
+    /** Atomic DOM register */
     class $hyoo_crus_atom_dom extends $hyoo_crus_atom($hyoo_crus_vary_cast_dom) {
     }
     $.$hyoo_crus_atom_dom = $hyoo_crus_atom_dom;
+    /** Atomic Tree register */
     class $hyoo_crus_atom_tree extends $hyoo_crus_atom($hyoo_crus_vary_cast_tree) {
     }
     $.$hyoo_crus_atom_tree = $hyoo_crus_atom_tree;
@@ -17348,12 +18267,14 @@ var $;
         static Value = $hyoo_crus_dict;
     }
     $.$hyoo_crus_atom_ref_base = $hyoo_crus_atom_ref_base;
+    /** Atomic reference to some Node type register */
     function $hyoo_crus_atom_ref_to(Value) {
         class $hyoo_crus_atom_ref_to extends $hyoo_crus_atom_ref_base {
             Value = $mol_memo.func(Value);
             static toString() {
                 return this === $hyoo_crus_atom_ref_to ? '$hyoo_crus_atom_ref_to<' + Value() + '>' : super.toString();
             }
+            /** Target Node */
             remote(next) {
                 return this.remote_of('', next);
             }
@@ -17364,6 +18285,7 @@ var $;
                     return null;
                 return this.$.$hyoo_crus_glob.Node(ref, Value());
             }
+            /** Target Node. Creates if not exists. */
             ensure(config) {
                 return this.ensure_of('', config);
             }
@@ -17395,9 +18317,11 @@ var $;
                 const land = this.$.$hyoo_crus_glob.land_grab(preset);
                 this.val_of(peer, land.ref());
             }
+            /** @deprecated Use ensure( preset ) */
             remote_ensure(preset) {
                 return this.ensure(preset);
             }
+            /** @deprecated Use ensure( null ) */
             local_ensure() {
                 return this.ensure(null);
             }
@@ -17423,7 +18347,9 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Entity dictionary Model with Title property included by default */
     class $hyoo_crus_entity extends $hyoo_crus_dict.with({
+        /** Entity Title - default property for use */
         Title: $hyoo_crus_atom_str,
     }) {
         title(next) {
@@ -17510,6 +18436,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Land where Lord is King. Contains only ain info. */
     class $hyoo_crus_home extends $hyoo_crus_entity.with({
         Selection: $hyoo_crus_atom_str,
         Hall: $hyoo_crus_atom_ref_to(() => $hyoo_crus_dict),
@@ -17525,18 +18452,24 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Whole global graph database which contains Lands. */
     class $hyoo_crus_glob extends $mol_object {
         static lands_touched = new $mol_wire_set();
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         lands_touched = this.constructor.lands_touched;
+        /** Glob synchronizer. */
         static yard() {
             return new this.$.$hyoo_crus_yard;
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         yard() {
             return this.$.$hyoo_crus_glob.yard();
         }
+        /** Land where Lord is King. Contains only ain info */
         static home(Node) {
             return this.Land(this.$.$hyoo_crus_auth.current().lord()).Data(Node ?? $hyoo_crus_home);
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         home() {
             return this.$.$hyoo_crus_glob.home();
         }
@@ -17554,28 +18487,34 @@ var $;
             this.Land(colony.ref()).apply_unit(colony.delta_unit());
             return king;
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         king_grab(preset = { '': $hyoo_crus_rank_read }) {
             return this.$.$hyoo_crus_glob.king_grab(preset);
         }
         static land_grab(preset = { '': $hyoo_crus_rank_read }) {
             return this.Land(this.king_grab(preset).lord());
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         land_grab(preset = { '': $hyoo_crus_rank_read }) {
             return this.$.$hyoo_crus_glob.land_grab(preset);
         }
+        /** Standalone part of Glob which syncs separately, have own rights, and contains Units */
         static Land(ref) {
             this.lands_touched.add(ref);
             return $hyoo_crus_land.make({
                 ref: $mol_const(ref),
             });
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         Land(ref) {
             return this.$.$hyoo_crus_glob.Land(ref);
         }
+        /** High level representation of stored data. */
         static Node(ref, Node) {
             const land = this.Land($hyoo_crus_ref_land(ref));
             return land.Node(Node).Item($hyoo_crus_ref_head(ref));
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         Node(ref, Node) {
             return this.$.$hyoo_crus_glob.Node(ref, Node);
         }
@@ -17583,6 +18522,7 @@ var $;
             const { lands, rocks } = pack.parts();
             return this.apply_parts(lands, rocks);
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         apply_pack(pack) {
             return this.$.$hyoo_crus_glob.apply_pack(pack);
         }
@@ -17602,6 +18542,7 @@ var $;
                 this.$.$hyoo_crus_mine.rock_save(rock);
             }
         }
+        /** @deprecated Use `this.$.$hyoo_crus_glob` */
         apply_parts(lands, rocks) {
             return this.$.$hyoo_crus_glob.apply_parts(lands, rocks);
         }
@@ -17631,11 +18572,13 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Mergeable text node */
     class $hyoo_crus_text extends $hyoo_crus_node {
         static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.vals];
         value(next) {
             return this.text(next);
         }
+        /** Text representation. Based on list of strings. */
         text(next) {
             if (next !== undefined) {
                 const land = this.land();
@@ -17647,6 +18590,7 @@ var $;
                     to: prev.length,
                     next: lines,
                     equal: (next, prev) => {
+                        //if( typeof prev.data === 'string' ) return false // ???
                         return land.Node($hyoo_crus_text).Item(prev.self()).str() === next;
                     },
                     drop: (prev, lead) => this.land().post(lead?.self() ?? '', prev.head(), prev.self(), null),
@@ -17663,6 +18607,7 @@ var $;
             }
             return this.str();
         }
+        /** Text representation. Based on list of strings. */
         str(next) {
             if (next === undefined) {
                 let str = '';
@@ -17758,7 +18703,7 @@ var $;
                 return next;
             }
             else {
-                this.text();
+                this.text(); // track text to recalc selection on its change
                 return base.Selection()?.val()?.split('|').map(point => {
                     const chunks = point.split(':');
                     return this.offset_by_point([chunks[0], Number(chunks[1]) || 0])[1];
@@ -17815,12 +18760,14 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($_1) {
     var $$;
     (function ($$) {
+        // Avatar upload button bound to CRUS profile Photos collection.
         class $bog_lk_avatar extends $.$bog_lk_avatar {
             avatar_log(event, detail = {}) {
                 const payload = JSON.stringify(detail, null, 2);
@@ -18078,6 +19025,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_row) = class $mol_row extends ($.$mol_view) {};
 
@@ -18091,6 +19039,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$mol_form_field) = class $mol_form_field extends ($.$mol_labeler) {
@@ -18124,12 +19073,16 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_form_demo
+         */
         class $mol_form_field extends $.$mol_form_field {
             bid() {
                 return this.bids().filter(Boolean)[0] ?? '';
@@ -18315,12 +19268,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * An input field for entering multiline text.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_textarea_demo
+         */
         class $mol_textarea extends $.$mol_textarea {
             indent_inc() {
                 let text = this.value();
@@ -18434,6 +19392,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 	($.$mol_status) = class $mol_status extends ($.$mol_view) {
 		message(){
@@ -18456,6 +19415,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -18590,12 +19550,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Form, that contains form fields and action buttons.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_form_demo
+         */
         class $mol_form extends $.$mol_form {
             form_fields() {
                 return [...this.view_find(view => view instanceof $mol_form_field)]
@@ -18672,6 +19637,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 	($.$bog_lk) = class $bog_lk extends ($.$mol_page) {
@@ -19144,6 +20110,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -19614,6 +20581,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Dynamic sources import. */
     class $mol_import extends $mol_object2 {
         static module(uri) {
             $mol_wire_solid();
@@ -19685,6 +20653,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -19951,6 +20920,7 @@ var $;
             });
             return Object.assign(promise, {
                 destructor: () => {
+                    // Abort of done request breaks response parsing
                     if (!done && !controller.signal.aborted)
                         controller.abort();
                 },
@@ -20018,6 +20988,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -20100,6 +21071,7 @@ var $;
 
 ;
 "use strict";
+
 
 ;
 "use strict";
@@ -20189,12 +21161,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * List of checkboxes
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_check_list_demo
+         */
         class $mol_check_list extends $.$mol_check_list {
             options() {
                 return {};
@@ -20251,12 +21228,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * Buttons which switching the state
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_switch_demo
+         */
         class $mol_switch extends $.$mol_switch {
             value(next) {
                 return $mol_state_session.value(`${this}.value()`, next) ?? '';
@@ -20306,12 +21288,17 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
 (function ($) {
     var $$;
     (function ($$) {
+        /**
+         * The component which arrange content in multiple tabs.
+         * @seehttps://mol.hyoo.ru/#!section=demos/demo=mol_deck_demo
+         */
         class $mol_deck extends $.$mol_deck {
             current(next) {
                 return $mol_state_session.value(`${this}.current()`, next) || '0';
@@ -20401,6 +21388,7 @@ var $;
 ;
 "use strict";
 
+
 ;
 "use strict";
 var $;
@@ -20408,8 +21396,8 @@ var $;
     var $$;
     (function ($$) {
         new $mol_after_frame(() => {
-            $hyoo_crus_yard.masters = ['https://crus.hd4.ru/'];
-            $hyoo_crus_glob.yard().sync();
+            $hyoo_crus_yard.masters = ['https://crus.hd4.ru/']; // только прод-мастер
+            $hyoo_crus_glob.yard().sync(); // дёрнуть синхронизацию
         });
         class $bog_pay_app extends $.$bog_pay_app {
             body() {
